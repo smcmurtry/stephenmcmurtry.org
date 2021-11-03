@@ -25,7 +25,7 @@ var portfolio_items = [
   {
     title: 'Carbon Underground',
     date: '2015-09-23',
-    link: '/Carbon_Underground',
+    link: '/carbon_underground',
     image_fname: 'carbon_underground.png'
   },
   {
@@ -43,7 +43,7 @@ var portfolio_items = [
   {
     title: 'Israeli ID System',
     date: '2016-01-18',
-    link: '/id_system',
+    link: '/israeli_id_system',
     image_fname: 'id_system.png'
   },
   {
