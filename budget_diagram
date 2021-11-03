@@ -1,0 +1,381 @@
+<!DOCTYPE html>
+<html class="ocks-org do-not-copy">
+<meta charset="utf-8">
+<title>Canadian Federal Budget</title>
+<style>
+
+
+#chart {
+  width: 960px;
+  height: 500px;
+  background: #bbb;
+}
+
+text {
+  pointer-events: none;
+}
+
+.grandparent text {
+  font-weight: bold;
+}
+
+rect {
+  fill: none;
+  stroke: #fff;
+}
+
+rect.parent,
+.grandparent rect {
+  stroke-width: 2px;
+}
+
+.grandparent rect {
+  fill: orange;
+}
+
+.grandparent:hover rect {
+  fill: #ee9700;
+}
+
+.children rect.parent,
+.grandparent rect {
+  cursor: pointer;
+}
+
+rect.parent {
+  pointer-events: all;
+}
+
+.children:hover rect.child {
+  fill: #aaa;
+}
+
+</style>
+
+
+<h1>Canadian Federal Budget</h1>
+
+<p id="chart">
+
+
+<script src="http://d3js.org/d3.v3.min.js"></script>
+<script>
+
+var margin = {top: 20, right: 0, bottom: 0, left: 0},
+    width = 960,
+    height = 500 - margin.top - margin.bottom,
+    formatNumber = d3.format(",d"),
+    transitioning;
+
+var x = d3.scale.linear()
+    .domain([0, width])
+    .range([0, width]);
+
+var y = d3.scale.linear()
+    .domain([0, height])
+    .range([0, height]);
+
+var color = d3.scale.category20c();
+var	colourScale = d3.scale.sqrt().domain([-1,0,1]).range(['red','grey','green']);
+
+function diff(disp,ref) {
+	if(ref != 0 && disp==disp) {
+		return (ref-disp)/ref;
+	} else {
+		return 0;
+	}
+}
+
+// formatting variables
+var percent = d3.format(".0%");
+var	makeInt = d3.format(".2r");
+
+// dollar formatting function
+function magnitude(number) {
+	if (Math.abs(number) < 1e3) {return makeInt(number);}
+	else if (Math.abs(number) >= 1e3 && Math.abs(number) < 1e6) {return makeInt(number/1e3) + " Thousand";}
+	else if (Math.abs(number) >= 1e6 && Math.abs(number) < 1e9) {return makeInt(number/1e6) + " Million";}
+	else if (Math.abs(number) >= 1e9 && Math.abs(number) < 1e12) {return makeInt(number/1e9) + " Billion";}
+	else {return "crap";}
+}
+
+var treemap = d3.layout.treemap()
+    .children(function(d, depth) { return depth ? null : d._children; })
+  	.value(function(d) { return d.value; })
+	.sort(function(a, b) { return a.value - b.value; })
+    .ratio(height / width * 0.5 * (1 + Math.sqrt(5)))
+    .round(false);
+
+var svg = d3.select("#chart").append("svg")
+    .attr("width", width + margin.left + margin.right)
+    .attr("height", height + margin.bottom + margin.top)
+    .style("margin-left", -margin.left + "px")
+    .style("margin.right", -margin.right + "px")
+  .append("g")
+    .attr("transform", "translate(" + margin.left + "," + margin.top + ")")
+    .style("shape-rendering", "crispEdges");
+
+var grandparent = svg.append("g")
+    .attr("class", "grandparent");
+
+grandparent.append("rect")
+    .attr("y", -margin.top)
+    .attr("width", width)
+    .attr("height", margin.top);
+
+grandparent.append("text")
+    .attr("x", 6)
+    .attr("y", 6 - margin.top)
+    .attr("dy", ".75em");
+
+d3.json("budget_2013/budget1.json", function(rooty) {
+  var root = toHeirarchy(rooty);
+  initialize(root);
+  accumulate(root);
+  accumulate0(root);
+  accumulate1(root);
+  accumulate2(root);
+
+  layout(root);
+  display(root);
+  function initialize(root) {
+    root.x = root.y = 0;
+    root.dx = width;
+    root.dy = height;
+    root.depth = 0;
+  }
+
+  // Aggregate the values for internal nodes. This is normally done by the
+  // treemap layout, but not here because of our custom implementation.
+  // We also take a snapshot of the original children (_children) to avoid
+  // the children being overwritten when when layout is computed.
+  function accumulate(d) {
+    return (d._children = d.children)
+        ? d.value = d.children.reduce(function(p, v) { return p + accumulate(v); }, 0)
+        : d.value;
+  }
+  function accumulate0(d) {
+    return (d._children = d.children)
+        ? d.value0 = d.children.reduce(function(p, v) { return p + accumulate0(v); }, 0)
+        : d.value0;
+  }
+  function accumulate1(d) {
+    return (d._children = d.children)
+        ? d.value1 = d.children.reduce(function(p, v) { return p + accumulate1(v); }, 0)
+        : d.value1;
+  }
+  function accumulate2(d) {
+    return (d._children = d.children)
+        ? d.value2 = d.children.reduce(function(p, v) { return p + accumulate2(v); }, 0)
+        : d.value2;
+  }
+  // Compute the treemap layout recursively such that each group of siblings
+  // uses the same size (1×1) rather than the dimensions of the parent cell.
+  // This optimizes the layout for the current zoom state. Note that a wrapper
+  // object is created for the parent node for each group of siblings so that
+  // the parent’s dimensions are not discarded as we recurse. Since each group
+  // of sibling was laid out in 1×1, we must rescale to fit using absolute
+  // coordinates. This lets us use a viewport to zoom.
+  function layout(d) {
+    if (d._children) {
+      treemap.nodes({_children: d._children});
+      d._children.forEach(function(c) {
+        c.x = d.x + c.x * d.dx;
+        c.y = d.y + c.y * d.dy;
+        c.dx *= d.dx;
+        c.dy *= d.dy;
+        c.parent = d;
+        layout(c);
+      });
+    }
+  }
+
+  function display(d) {
+    grandparent
+        .datum(d.parent)
+        .on("click", transition)
+      .select("text")
+        .text(name(d));
+
+    var g1 = svg.insert("g", ".grandparent")
+        .datum(d)
+        .attr("class", "depth");
+
+    var g = g1.selectAll("g")
+        .data(d._children)
+      .enter().append("g");
+
+    g.filter(function(d) { return d._children; })
+        .classed("children", true)
+        .on("click", transition);
+
+    g.selectAll(".child")
+        .data(function(d) { return d._children || [d]; })
+      .enter().append("rect")
+        .attr("class", "child")
+        .call(rect);
+
+    g.append("rect")
+        .attr("class", "parent")
+        .call(rect)
+      .append("title")
+        .text(function(d) { return d.name + ", 2011: $" + magnitude(d.value) + ", change: " + percent(diff(d.value,d.value0)) ; });
+
+   // g.append("text")
+   //     .attr("dy", ".75em")
+   //     .text(function(d) { return d.name; })
+   //     .call(text);
+
+	/* Adding a foreign object instead of a text object, allows for text wrapping */
+			g.append("foreignObject")
+				.call(rect)
+				.attr("class","foreignobj")
+				.append("xhtml:div") 
+				.attr("dy", ".75em")
+				.html(function(d) { return d.name; })
+				.attr("class","textdiv"); //textdiv class allows us to style the text easily with CSS
+
+    function transition(d) {
+      if (transitioning || !d) return;
+      transitioning = true;
+
+      var g2 = display(d),
+          t1 = g1.transition().duration(750),
+          t2 = g2.transition().duration(750);
+
+      // Update the domain only after entering new elements.
+      x.domain([d.x, d.x + d.dx]);
+      y.domain([d.y, d.y + d.dy]);
+
+      // Enable anti-aliasing during the transition.
+      svg.style("shape-rendering", null);
+
+      // Draw child nodes on top of parent nodes.
+      svg.selectAll(".depth").sort(function(a, b) { return a.depth - b.depth; });
+
+      // Fade-in entering text.
+      g2.selectAll("text").style("fill-opacity", 0);
+	  g2.selectAll("foreignObject div").style("display", "none"); /*added*/
+
+      // Transition to the new view.
+      t1.selectAll("text").call(text).style("fill-opacity", 0);
+      t2.selectAll("text").call(text).style("fill-opacity", 1);
+      t1.selectAll("rect").call(rect);
+      t2.selectAll("rect").call(rect);
+
+	  t1.selectAll(".textdiv").style("display", "none"); /* added */
+	  t1.selectAll(".foreignobj").call(foreign); /* added */
+	  t2.selectAll(".textdiv").style("display", "block"); /* added */
+	  t2.selectAll(".foreignobj").call(foreign); /* added */ 
+				
+      // Remove the old node when the transition is finished.
+      t1.remove().each("end", function() {
+        svg.style("shape-rendering", "crispEdges");
+        transitioning = false;
+      });
+    }
+
+    return g;
+  }
+
+  function text(text) {
+    text.attr("x", function(d) { return x(d.x) + 6; })
+        .attr("y", function(d) { return y(d.y) + 6; });
+  }
+
+  function rect(rect) {
+    rect.attr("x", function(d) { return x(d.x); })
+        .attr("y", function(d) { return y(d.y); })
+        .attr("width", function(d) { return x(d.x + d.dx) - x(d.x); })
+        .attr("height", function(d) { return y(d.y + d.dy) - y(d.y); })
+		.style("background", function(d) { return d.parent ? colourScale(diff(d.value,d.value0)) : null; });
+  }
+  
+  function foreign(foreign){ /* added */
+			foreign.attr("x", function(d) { return x(d.x); })
+			.attr("y", function(d) { return y(d.y); })
+			.attr("width", function(d) { return x(d.x + d.dx) - x(d.x); })
+			.attr("height", function(d) { return y(d.y + d.dy) - y(d.y); });
+		}
+  function name(d) {
+    return d.parent
+        ? name(d.parent) + " > " + d.name
+        : d.name;
+  }
+  
+  //----------------------------------------------------------------------------------------
+// functions to put data in a hierarchy
+//----------------------------------------------------------------------------------------
+
+function toHeirarchy(obj) {
+
+  // Get the organisms array
+  var orgName, numbers, orgNames = obj; //obj.organisms;
+  var years = ['yr2009', 'yr2010', 'yr2011'];
+  
+  // Make root object
+  var root = {name:'Budget', children:[]};
+	
+  // For each organism, get the name parts
+  for (var i=0, iLen=orgNames.length; i<iLen; i++) {
+  	
+    // orgName = orgNames[i].name.split('.'); // this in an Object Array
+	orgName = [orgNames[i].Organizations, orgNames[i].Program_Activity];
+	numbers = [orgNames[i].Expenditures_2009, orgNames[i].Expenditures_2010, orgNames[i].Expenditures_2011];
+	
+    // Start from root.children
+    children = root.children;
+
+    // For each part of name, get child if already have it
+    // or add new object and child if not
+    for (var j=0, jLen=orgName.length; j<jLen; j++) {
+      children = addChild(children, orgName[j], j, numbers);
+      //if (j == 1) {
+    	//for (var k=0, kLen=orgName.length; k<kLen; k++) {
+    	 // children = addLeaf(children, years[k], numbers[k])
+    	//}
+      }      
+	}
+    
+    return root;
+}
+
+  // Helper function, iterates over children looking for 
+  // name. If found, returns its child array, otherwise adds a new
+  // child object and child array and returns it.
+  function addChild(children, name, iter, size) {
+
+    // Look for name in children
+    for (var i=0, iLen=children.length; i<iLen; i++) {
+
+      // If find name, return its child array
+      if (children[i].name == name) {
+        return children[i].children;        
+      }
+    }
+    // If didn't find name, add a new object and 
+    // return its child array
+    if (iter == 1) {
+        children.push({'name': name, 'value': size[2], 'value0':size[0], 'value1':size[1], 'value2':size[2], 'histSize': [size[0], size[1], size[2]]}); // changed size to value
+//children.push({'name': name, 'children':[{'name': 'yr2009', 'size': size[0]}]});//, {'name':'yr2010', 'name': size[1]}]});
+    } else {
+        children.push({'name': name, 'children':[]});
+    }
+    return children[children.length - 1].children;
+  }
+});
+
+</script>
+
+<script>
+  (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+  (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+  m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+  })(window,document,'script','//www.google-analytics.com/analytics.js','ga');
+
+  ga('create', 'UA-59457353-1', 'auto');
+  ga('send', 'pageview');
+
+</script>
+
+</html>

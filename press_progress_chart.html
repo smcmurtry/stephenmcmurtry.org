@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<head>
+  <meta charset="utf-8">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/3.5.6/d3.js"></script>
+  <title>Press Progress Chart</title>
+  <meta name="description" content="Press Progress Chart">
+<link href='https://fonts.googleapis.com/css?family=Roboto+Slab:300,400|Roboto:400,700,700italic,400italic,900' rel='stylesheet' type='text/css'>
+</head>
+
+<style>
+
+
+body {
+  font: 18px 'Roboto', helvetica, sans-serif;
+  text-align: center;
+}
+
+svg {
+  margin: o auto;
+  text-align: left;
+}
+
+.axis.y, .dollar-labels {
+  font-style: italic;
+}
+
+.axis.x {
+  font-weight: bold;
+}
+
+.bar {
+  fill: #42ABCE;
+}
+
+.bar:hover {
+  opacity: 0.7;
+}
+
+.axis path,
+.axis line {
+  fill: none;
+  stroke: #000;
+  shape-rendering: crispEdges;
+}
+
+.x.axis path {
+  display: none;
+}
+
+.line {
+  display: none;
+}
+
+.y.axis line {
+  stroke: #777;
+  stroke-dasharray: 2,2;
+}
+
+.y.axis path {
+  display: none;
+}
+
+</style>
+
+<body></body>
+
+<script>
+
+var t = 750;
+
+var margin = {top: 50, right: 0, bottom: 70, left: 100},
+    width = 700 - margin.left - margin.right,
+    height = 500 - margin.top - margin.bottom;
+
+var data = [{'label': 'Average Minimum Wage Full Year Earnings', 'value': 22010, 'order': 1}, 
+            {'label': 'Average Wage and Salary Full Year Earnings', 'value': 48636, 'order': 2}, 
+            {'label': 'Average Top 100 CEOs', 'value': 8958650, 'order': 3}];
+
+var x = d3.scale.ordinal()
+    .rangeRoundBands([0, width], .1);
+
+var y = d3.scale.linear()
+    .range([height, 0]);
+
+var xAxis = d3.svg.axis()
+    .scale(x)
+    .tickSize(0)
+    .orient("bottom");
+
+var yAxis = d3.svg.axis()
+    .scale(y)
+    .orient("right")
+    .tickSize(width)
+    .tickFormat(number_format)
+
+var svg = d3.select("body").append("svg")
+    .attr("width", width + margin.left + margin.right)
+    .attr("height", height + margin.top + margin.bottom)
+  .append("g")
+    .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+
+x.domain(data.map(function(d) { return d.label; }));
+y.domain([0, 9000000]);// d3.max(data, function(d) { return d.value; })]);
+
+var delta_x = x(data[1].label) - x(data[0].label);
+var y_gap = 10;
+
+svg.append("g")
+    .attr("class", "x axis")
+    .attr("transform", "translate(0," + (height+10) + ")")
+    .call(xAxis)
+        .selectAll(".tick text")
+      .call(wrap, x.rangeBand());
+
+svg.append("g")
+    .attr("class", "y axis")
+    .call(yAxis)
+    .call(customAxis);
+
+svg.selectAll(".bar")
+    .data(data)
+  .enter().append("rect")
+    .attr("class", "bar")
+    .attr('id', function(d) { return 'bar' + d.order; })
+    .attr("x", function(d) { return x(d.label); })
+    .attr("width", x.rangeBand())
+    // .attr("y", function(d) { return y(d.value); })
+//     .attr("height", function(d) { return height - y(d.value); });
+    .attr('height', 0 )
+    .attr('y', height );
+
+svg.selectAll('.dollar-labels')
+  .data(data)
+  .enter().append('text')
+  .attr('class', 'dollar-labels')
+  .attr('id', function(d) { return 'label' + d.order; })
+  .attr('text-anchor', 'middle')
+  .attr('x', function(d) { return delta_x/2 + x(d.label); })
+  .attr('y', function(d) { return y(d.value) - y_gap; })
+  .text(function(d) { return number_format(d.value); })
+  .attr('opacity', 0);
+
+change();
+
+function change() {
+
+svg.selectAll(".bar")
+    .transition()
+    .delay(function(d, i) { return i * t; })
+  .duration(t)
+    .attr("height", function(d) { return height - y(d.value); })
+    .attr('y', function(d) { return  y(d.value)})
+
+
+svg.selectAll(".dollar-labels")
+  .transition()
+  .delay(function(d, i) { return i * t; })
+  .duration(t)
+  .attr('opacity', 1)
+
+}
+
+
+function number_format(n) {
+  var dict = {'':'', 'k':' thousand', 'M':' million', 'G':' billion'};
+  var suffix = d3.formatPrefix(n);
+  return '$' + d3.round(suffix.scale(n)) + dict[suffix.symbol];
+}
+
+function customAxis(g) {
+  g.selectAll("text")
+      .style('text-anchor', 'end')
+      .attr("x", -4)
+}
+
+function wrap(text, width) {
+  text.each(function() {
+    var text = d3.select(this),
+        words = text.text().split(/\s+/).reverse(),
+        word,
+        line = [],
+        lineNumber = 0,
+        lineHeight = 1.1, // ems
+        y = text.attr("y"),
+        dy = parseFloat(text.attr("dy")),
+        tspan = text.text(null).append("tspan").attr("x", 0).attr("y", y).attr("dy", dy + "em");
+    while (word = words.pop()) {
+      line.push(word);
+      tspan.text(line.join(" "));
+      if (tspan.node().getComputedTextLength() > width) {
+        line.pop();
+        tspan.text(line.join(" "));
+        line = [word];
+        tspan = text.append("tspan").attr("x", 0).attr("y", y).attr("dy", ++lineNumber * lineHeight + dy + "em").text(word);
+      }
+    }
+  });
+}
+
+</script>

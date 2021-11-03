@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<head>
+  <meta charset="utf-8">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/3.5.6/d3.js"></script>
+  <title>Network Graph</title>
+  <meta name="description" content="Academic Network Graph">
+</head>
+<style>
+
+.body {
+  font-family: helvetica, sans-serif;
+  font-size: 16px;
+}
+
+.hovercard {
+  position: absolute;
+  display: none;
+  width: 300px;
+  background-color: white;
+}
+
+.hovercard .title, .hovercard .citations {
+  width: 100%
+  height: 1em;
+  margin: 5px;
+}
+
+.axis {
+  shape-rendering: crispEdges;
+}
+.y.axis line,
+.y.axis path {
+  fill: none;
+  stroke: #000;
+}
+
+</style>
+
+<body>
+</body>
+
+<script>
+
+var data_path = './dir_academic_search/';
+
+var hovercard = d3.select('body')
+  .append('div')
+  .attr('class', 'hovercard');
+
+var title = hovercard.append('div')
+  .attr('class', 'title');
+
+var citations = hovercard.append('div')
+  .attr('class', 'citations');
+
+var width = 1000,
+    height = 800,
+    margin = 30;
+
+var force = d3.layout.force()
+    .charge(-200)
+    .linkDistance(100)
+    .size([width, height]);
+
+var r_scale = d3.scale.pow().exponent(.5)
+  .domain([0, 4065])
+  .range([0, 25]);
+
+var min_yr = 2010,
+    max_yr = 2015;
+
+var t_scale = d3.scale.linear()
+  .domain([min_yr, max_yr])
+  .range([margin, height-margin]);
+
+var formatYears = d3.format("0000");
+
+var yAxis = d3.svg.axis()
+  .scale(t_scale)
+  .orient("left")
+  .ticks(5)
+  .tickFormat(formatYears);
+
+function getRandomInt(min, max) {
+  return Math.floor(Math.random() * (max - min + 1)) + min;
+}
+
+var canvas = d3.select("body").append("canvas")
+    .attr("width", width)
+    .attr("height", height);
+
+var body_margin = d3.select('body').style('margin').slice(0, -2);
+
+var svg = d3.select("body").append("svg")
+    .style('position', 'absolute')
+    .style('left', body_margin + 'px')
+    .style('top', body_margin + 'px')
+    .attr("width", width)
+    .attr("height", height)
+    .append('g');
+
+svg.append("g")
+    .attr("transform", "translate(" + 2*margin + "," + 0 + ")")
+    .attr("class", "y axis")
+    .call(yAxis);
+
+var circle = svg.append('circle')
+  .style('display', 'none');
+
+d3.json(data_path + "nodes_1.json", function(error1, nodes) {
+  if (error1) throw error1;
+  d3.json(data_path + "links_1.json", function(error2, links) {
+    if (error2) throw error2;
+
+    nodes.forEach(function(d, i) {
+      if (i == 0) {
+        d.year = min_yr;
+      } else {
+        d.year = getRandomInt(min_yr+1, max_yr);
+      }
+      d.y = t_scale(d.year)
+    })
+
+    // console.log(nodes);
+    // console.log(links);
+
+    var context = canvas.node().getContext("2d");
+    var active_node = null;
+
+    force.nodes(nodes)
+        .links(links)
+        .on("tick", tick)
+        .start();
+
+    function tick() {
+      context.clearRect(0, 0, width, height);
+
+      // draw links
+      context.strokeStyle = "#ccc";
+      context.beginPath();
+      links.forEach(function(d) {
+        context.moveTo(d.source.x,  d.source.y);// t_scale(d.source.year));// d.source.y);
+        context.lineTo(d.target.x, d.target.y);//t_scale(d.target.year));//d.target.y);
+      });
+      context.stroke();
+
+      // draw nodes
+      nodes.forEach(function(d, i) {
+        d.r = r_scale(d.cited_by_int);
+        d.y = t_scale(d.year);
+        if (i == 0) { d.colour = "#2c7fb8"; } 
+        else { d.colour = "#7fcdbb"; }
+        draw_circle(d.x, d.y, d.r, d.colour); //d.y
+
+      });
+    }
+
+    window.addEventListener('mousemove', draw, false);
+    window.addEventListener('click', click, false);
+
+    function draw_circle(cx, cy, r, fill_colour) {
+      context.fillStyle = fill_colour;
+      context.beginPath();
+      context.moveTo(cx, cy);
+      context.arc(cx, cy, r, 0, 2 * Math.PI);
+      context.fill();
+    }
+
+    function draw_svg_circle(cx, cy, r, fill_colour) {
+      circle.attr('cx', cx)
+        .attr('cy', cy)
+        .attr('r', r)
+        .attr('fill', fill_colour)
+        .style('display', 'block');
+    }
+
+    function draw(e) {
+      var pos = getMousePos(canvas, e);
+
+      if (active_node != null && !is_mouseover(pos, active_node)) {
+        deactivate_node(active_node);
+      }
+
+      nodes.forEach(function(d, i) {
+        if (is_mouseover(pos, d)) {
+          activate_node(d);
+          draw_svg_circle(d.x, d.y, d.r, 'red');
+          return;
+        }
+      })
+    }
+
+    function is_mouseover(pos, node) {
+      var dist = euclidean_distance(pos.x, node.x, pos.y, node.y);
+      if (dist <= node.r) { return true; }
+      else { return false; }
+    }
+
+    function getMousePos(canvas, evt) {
+      var rect = canvas.node().getBoundingClientRect();
+      return {
+        x: evt.clientX - rect.left,
+        y: evt.clientY - rect.top
+      };
+    }
+
+    function activate_node(node) {
+      var x_offset = 30;
+      title.html(node.title);
+      citations.html("Cited by " + node.cited_by_int);
+      hovercard.style('display', 'block')
+        .style('top', node.y + 'px')
+        .style('left', (node.x + x_offset) + 'px')
+      d3.select('body').style('cursor', 'pointer');
+      active_node = node;
+    }
+
+    function deactivate_node(node) {
+      hovercard.style('display', 'none');
+      d3.select('body').style('cursor', 'default');
+      circle.style('display', 'none');
+      active_node = null;
+    }
+
+    function click() {
+      if (active_node != null) {
+        var win = window.open(active_node.link, '_blank');
+        win.focus();
+      }
+    }
+
+  });
+});
+
+function euclidean_distance(x1, x2, y1, y2) {
+  return Math.pow(Math.pow(x2-x1, 2) + Math.pow(y2-y1, 2), 0.5);
+}
+
+
+</script>

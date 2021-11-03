@@ -1,0 +1,564 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <title>Public Building Energy Consumption in Ontario</title>
+  <meta name="description" content="A tool to compare the energy consumption of public buildings in Ontario.">
+  <link rel="stylesheet" href="resources/jquery.dataTables.css">
+  <link rel="stylesheet" href="resources/typeahead.css">
+  <link rel="stylesheet" href="dir_energy_consumption/energy_consumption.css">
+
+  <script src="resources/d3.v3.min.js"></script>
+  <script src="https://code.jquery.com/jquery-1.10.2.js"></script>
+  <!-- <script src="https://maps.googleapis.com/maps/api/js?v=3.exp&libraries=visualization"></script> -->
+  <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyAfpqIv1_rfbWOiDoBYrZjqTHzKFpU9qSY"
+  type="text/javascript"></script>
+  <script src="resources/jquery.dataTables.min.js"></script>
+  <script src="resources/jquery.scrollTo.min.js"></script>
+  <script src="resources/typeahead.bundle.min.js"></script>
+  <script src="resources/queue.js"></script>
+  <script>
+    (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+    (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+    m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+    })(window,document,'script','//www.google-analytics.com/analytics.js','ga');
+
+    ga('create', 'UA-59457353-1', 'auto');
+    ga('send', 'pageview');
+
+  </script>
+
+</head>
+
+<script>
+
+var data_path = "dir_energy_consumption/", // or building_energy/ ?
+    grey_pin_path = 'resources/images/grey_pin.png',
+    green_pin_path = 'resources/images/green_pin.png';
+    
+// from https://stackoverflow.com/questions/19640055/multiple-markers-google-map-api-v3-from-array-of-addresses-and-avoid-over-query
+
+initialize_map();
+comma_format = d3.format("0,000");
+zero_format_int = d3.format("06d");
+zero_format_float = d3.format('07.0r');
+var markers = {},
+    oTable,
+    cat_id,
+    type,
+    building_id;
+
+function initialize_autocomplete(searchable_array) {
+  $(function() {$( "#search-bar" ).autocomplete({ source: searchable_array }); });
+  $('.default-value').each( function () {
+  var $t = $(this),
+  default_value = this.value;
+  $t.css('color', '#929292');
+  $t.focus(function () {
+   if (this.value == default_value) {
+     this.value = '';
+     $t.css('color', 'black');
+   }
+  });
+  $t.blur(function () {
+   if ($.trim(this.value) == '') {
+     $t.css('color', '#929292');
+     this.value = default_value;
+   }
+  });
+  });
+}
+
+queue()
+    .defer(d3.csv, data_path + "dim_city.csv")
+    .defer(d3.csv, data_path + "dim_organization.csv")
+    .defer(d3.csv, data_path + "dim_operation_type.csv")
+    .defer(d3.csv, data_path + "master_final.csv")
+    .await(ready);
+
+function ready(error, DimCity, DimOrganization, DimOperationType, Master) {
+
+ var organization = new Bloodhound({
+    local: DimOrganization,
+    queryTokenizer: Bloodhound.tokenizers.whitespace,
+    datumTokenizer: Bloodhound.tokenizers.obj.whitespace('organization')
+  });
+
+  var operation_type = new Bloodhound({
+    local: DimOperationType,
+    queryTokenizer: Bloodhound.tokenizers.whitespace,
+    datumTokenizer: Bloodhound.tokenizers.obj.whitespace('operation_type')
+  });
+
+  var building_type = new Bloodhound({
+    local: Master,
+    queryTokenizer: Bloodhound.tokenizers.whitespace,
+    datumTokenizer: Bloodhound.tokenizers.obj.whitespace('operation_name')
+  });
+
+  $('.typeahead').typeahead({
+    highlight: true
+  },
+  {
+    name: 'organization',
+    display: 'organization',
+    source: organization,
+    templates: {
+      header: '<h3 class="search-category">Organization</h3>'
+    }
+  },
+  {
+    name: 'operation_type',
+    display: 'operation_type',
+    source: operation_type,
+    templates: {
+      header: '<h3 class="search-category">Building Type</h3>'
+    }
+  },
+  {
+    name: 'operation_name',
+    display: 'operation_name',
+    source: building_type,
+    templates: {
+      header: '<h3 class="search-category">Building Name</h3>'
+    }
+  }
+  );
+  
+  var dists = get_dists(Master);
+
+  $('.typeahead').bind('typeahead:select', function(ev, suggestion) {
+    // suggestion is the bound object
+    var rows;
+    if (suggestion.hasOwnProperty('organization')) {
+      cat_id = suggestion.dim_organization;
+      type = 0;
+      rows = Master.filter( function(obj) { return obj.dim_organization == +suggestion.dim_organization; });
+      var min_val = d3.min(rows, function(d) { return +d.org_rank; });
+      var min_row = rows.filter(function(d) { return +d.org_rank == +min_val; })[0];
+      building_id = min_row.index;
+      var organization_row = DimOrganization.filter(function( obj ) { return obj.dim_organization == suggestion.dim_organization; })[0];
+      d3.select("#results-title").text('Showing results for: ' + organization_row.organization + " (Organization)" )
+
+    } else if (suggestion.hasOwnProperty('operation_type')) {
+      cat_id = suggestion.dim_operation_type;
+      type = 1;
+      rows = Master.filter( function(obj) { return obj.dim_operation_type == +suggestion.dim_operation_type; });
+      var min_val = d3.min(rows, function(d) { return +d.op_type_rank; });
+      var min_row = rows.filter(function(d) { return +d.op_type_rank == +min_val; })[0];
+      building_id = min_row.index;
+      var operation_row = DimOperationType.filter(function( obj ) { return obj.dim_operation_type == suggestion.dim_operation_type; })[0];
+      d3.select("#results-title").text('Showing results for: ' + operation_row.operation_type + " (Building Type)");
+
+    } else if (suggestion.hasOwnProperty('operation_name')) {
+      cat_id = suggestion.dim_organization;
+      type = 0;
+      rows = Master.filter(function(obj) { return obj.dim_organization == suggestion.dim_organization; })
+      building_id = suggestion.index;
+      var organization_row = DimOrganization.filter(function( obj ) { return obj.dim_organization == suggestion.dim_organization; })[0];
+
+      d3.select("#results-title").text('Showing results for: ' + organization_row.organization + " (Organization)" )
+
+    }
+    hash_fn.set_url_hash(cat_id, type, building_id);
+    do_everything(rows, Master, DimCity, DimOperationType, DimOrganization, dists);
+    select_building(building_id, Master, DimCity, DimOperationType, dists);
+  });
+  
+  if (window.location.hash) {
+    var success = hash_fn.go_to_hash_state(Master, DimCity, DimOperationType, DimOrganization);
+    if (!success) { hash_fn.reset_hash(); }
+  }       
+
+}
+
+function initialize_map(){
+
+  $(document).ready(function () {
+
+    var myOptions = {
+      zoom: 5,
+      center: new google.maps.LatLng(49.3,-85.0),
+      mapTypeId: 'terrain'
+    };
+    var map = new google.maps.Map($('#map_canvas')[0], myOptions);
+
+    $('#results-table').dataTable( {
+        scrollY:        "435px", // this doesn't include the header
+        paging:         false,
+        retrieve:       true,
+        defaultContent: '',
+        sDom: 'lrtp', // removed i=length statement and f=search box
+        columns: [
+          { data: { _: 'org_rank.display', sort: 'org_rank.rank' } }, 
+          { data: { _: 'similar_rank.display', sort: 'similar_rank.rank' } },
+          { data: "name"} ]
+    } );
+  });
+}
+
+function do_everything(rows, Master, DimCity, DimOperationType, DimOrganization, dists) {
+
+  $(document).ready(function () {
+    $('#map_canvas').empty();
+    $("#results-table tbody").empty();
+    $('#results-table').DataTable().clear().draw();
+
+    var myOptions = {
+      zoom: 1,
+      center: new google.maps.LatLng(0, 0),
+      mapTypeId: 'terrain'
+    };
+    var map = new google.maps.Map($('#map_canvas')[0], myOptions);
+    var latlngbounds = new google.maps.LatLngBounds();
+
+    var pinImage = new google.maps.MarkerImage(grey_pin_path); 
+    markers = {};
+    oTable = $('#results-table').dataTable();
+
+    // add results to table
+    for (var x = 0; x < rows.length; x++) {
+      var r = rows[x]
+      var operation_type_row = DimOperationType.filter(function( obj ) { return obj.dim_operation_type == r.dim_operation_type; })[0];
+      var organization_row = DimOrganization.filter(function( obj ) { return obj.dim_organization == r.dim_organization; })[0];
+      var n_org_buildings = organization_row.n_buildings;
+      var n_op_type_buildings = operation_type_row.n_buildings;
+      var sensorId = r.index;
+
+      oTable.fnAddData( [
+        { "DT_RowId": sensorId + "r", 
+          "org_rank": {
+            "display": comma_format(r.org_rank) + ' of ' + comma_format(n_org_buildings), 
+            "rank": zero_format_int(r.org_rank) },
+          "similar_rank": {
+            "display": comma_format(r.op_type_rank) + ' of ' + comma_format(n_op_type_buildings), 
+            "rank": zero_format_int(d3.round(10000 * r.op_type_rank / n_op_type_buildings )) },
+          "name": r.operation_name } ],
+      false);
+
+      var latlng = new google.maps.LatLng(r.lat, r.lng);
+      latlngbounds.extend(latlng);
+      var marker = new google.maps.Marker({
+        position: latlng,
+        map: map,
+        title: r.operation_name,
+        icon: pinImage,
+        zIndex: 1,
+        index: r.index,
+        opacity: 0.5
+      });
+
+      google.maps.event.addListener(marker, 'click', function(e) {
+        if (this.zIndex == 1) {
+          deselect_previous();
+          var scroller = oTable.fnSettings().nTable.parentNode;                                              
+          $(scroller).scrollTo( $("#"+this.index+"r"), 1 );
+          on_select(this, Master, DimCity, DimOperationType, dists);
+          hash_fn.set_url_hash(cat_id, type, this.index);
+          $("#"+this.index+"r").toggleClass('selected');
+        } 
+      });
+      markers[sensorId+"r"] = marker;
+    }
+
+    // draw the datatable
+    $('#results-table').dataTable().fnDraw();
+
+    map.setCenter(latlngbounds.getCenter());
+    map.fitBounds(latlngbounds); 
+    
+  // listen for results click
+    $('#results-table tbody').unbind("click").on( 'click', 'tr', function () { // unbind is very important! it removes the event handlers from previous searches
+      // update map and stuff
+      id = $(this)[0].id;
+      m = markers[id];
+      // before class is toggled
+      if (!$(this).hasClass('selected')) { 
+        deselect_previous();
+        on_select(m, Master, DimCity, DimOperationType, dists);
+        hash_fn.set_url_hash(cat_id, type, id.slice(0, id.length-1)); // removing the 'r' from the end
+        $("#" + id).toggleClass('selected');
+      }
+    });
+  });
+}
+
+function deselect_previous() {
+  // deselct all previously selected
+  var selected = d3.selectAll(".selected")[0][0];
+  if (typeof selected != "undefined") {
+    $("#" + selected.id).toggleClass('selected');
+    on_deselect(markers[selected.id]);
+  }
+}
+
+function on_select(marker, Master, DimCity, DimOperationType, dists) {
+  //if zIndex == 2, selected=True
+  marker.setIcon(green_pin_path);
+  marker.setZIndex(2);
+  marker.setOpacity(1.0);
+  var row_index = 1*marker.index;
+  var row = Master.filter(function( obj ) { return obj.index == row_index; })[0];
+  var city_row = DimCity.filter(function( obj ) { return obj.dim_City == row.dim_City; })[0];
+  var operation_type_row = DimOperationType.filter(function( obj ) { return obj.dim_operation_type == row.dim_operation_type; })[0];
+  var dist = dists[row.dim_operation_type];
+  generateReport(row, city_row, operation_type_row, dist);
+};
+
+function on_deselect(marker) {
+  marker.setIcon(grey_pin_path);
+  marker.setZIndex(1);
+  marker.setOpacity(0.5)
+  $(".report").remove();
+};
+
+
+function generateReport(row, city_row, operation_type_row, clean_dist) {
+  $(".report").remove()
+
+  $("#container").append('<div class="report"></div>');
+
+  $(".report").append('<h3>' + row.operation_name + '</h3>')
+              .append('<div class="left-report"></div>')
+              .append('<div class="right-report"></div>');
+
+  $(".left-report").append(get_table(row, city_row, operation_type_row));
+  $(".right-report").append(get_pct_rank(row, operation_type_row))
+                    .append('<div class="chart"></div>');
+
+  plot_hist(clean_dist, row.en_intensity_ekWh_sqft, '.chart');
+};
+
+
+function get_table(row, city_row, operation_type_row) {
+
+  var table = '<table class="report-table" cellpadding="10">'
+  table += '<col width="40%">'
+  table += '<col width="60%">'
+
+  table += '<tr>'
+  table += '<td><b>Address</b></td>'
+  table += '<td>' + row.Address + '<br>' + city_row.City + ', ON<br>' + row.Zip.slice(0, 3) + ' ' + row.Zip.slice(3, 6) + '</td>' 
+  table += '</tr>' 
+
+  table += '<tr>'
+  table += '<td><b>Building Type</b></td>'
+  table += '<td>' + operation_type_row.operation_type + '</td>'
+  table += '</tr>' 
+
+  table += '<tr>'
+  table += '<td><b>Floor Area</b></td>'
+  table += '<td>' + comma_format(row.tot_floor_area_ft2) + ' sqft</td>' //d3.round(row.tot_floor_area_ft2, 0) + ' sqft</td>'
+  table += '</tr>' 
+
+  table += '<tr>'
+  table += '<td><b>Energy Consumption</b></td>'
+  table += '<td>' + d3.round(row.en_intensity_ekWh_sqft, 1) + ' ekWh/sqft</td>'
+  table += '</tr>' 
+
+  table += '<tr>'
+  table += '<td><b>Median energy consumption for this type of building</b></td>'
+  table += '<td>' + d3.round(operation_type_row.median_en_intensity_ekWh_sqft, 1) + ' ekWh/sqft</td>'
+  table += '</tr>' 
+
+  table += '</table></div>'
+  return table
+};
+
+function get_pct_rank(row, operation_type_row) {
+  var span = '<table>'; 
+  span += '<tr><td class="big-text">' + '#' + comma_format(row.op_type_rank) + ' of ' + comma_format(operation_type_row.n_buildings) + '</td></tr>'
+  span += '<tr><td class="small-text">energy efficiency ranked against the ' + comma_format(operation_type_row.n_buildings) + ' other buildings of this type in Ontario.</td></tr>'
+  span += '</table>'
+  return span
+};
+
+function get_dists(Master) {
+  var dists = {};
+  for (var i = Master.length - 1; i >= 0; i--) {
+    if ( !dists.hasOwnProperty(Master[i].dim_operation_type) ) {
+      dists[Master[i].dim_operation_type] = [Master[i].en_intensity_ekWh_sqft];
+    } else {
+      dists[Master[i].dim_operation_type].push(1.0*Master[i].en_intensity_ekWh_sqft);
+    }
+  };
+  return dists
+};
+
+function plot_hist(values, one_en_intensity_ekWh_sqft, div_tag) {
+  // A formatter for counts.
+  var formatCount = d3.format(",.0f");
+
+  var margin = {top: 10, right: 30, bottom: 50, left: 50},
+      width = 275 - margin.left - margin.right, // 800 was 960
+      height = 180 - margin.top - margin.bottom;
+
+  var x = d3.scale.linear()
+    .domain([0, 100.]) //100., d3.max(values)])
+    .clamp(true)
+    .range([0, width]);
+
+  // Generate a histogram using twenty uniformly-spaced bins.
+  var data = d3.layout.histogram()
+    .bins(x.ticks(20))
+    (values);
+
+  var y = d3.scale.linear()
+    .domain([0, d3.max(data, function(d) { return d.y; })])
+    .range([height, 0]);
+
+  var xAxis = d3.svg.axis()
+    .scale(x)
+    .ticks(6)
+    .orient("bottom");
+
+  var yAxis = d3.svg.axis()
+    .scale(y)
+    .ticks(4)
+    .orient("left");
+
+  var svg = d3.select(div_tag).append("svg")
+    .attr("width", width + margin.left + margin.right)
+    .attr("height", height + margin.top + margin.bottom)
+    .append("g")
+    .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+
+  // Add an x-axis label.
+  svg.append("text")
+    .attr("class", "x label")
+    .attr("text-anchor", "end")
+    .attr("x", width)
+    .attr("y", height + 30)
+    .text("Energy Consumption (ekWh/sqft)");
+
+  // Add a y-axis label.
+  svg.append("text")
+    .attr("class", "y label")
+    .attr("text-anchor", "end")
+    .attr("y", -33)
+    .attr("x", 6)
+    .attr("transform", "rotate(-90)")
+    .text("# of Buildings");
+
+  var bar = svg.selectAll(".bar")
+    .data(data)
+    .enter().append("g")
+    .attr("class", "bar")
+    .attr("transform", function(d) { return "translate(" + x(d.x) + "," + y(d.y) + ")"; });
+
+  bar.append("rect")
+    .attr("x", 1)
+    .attr("width", x(data[0].dx) - 1)
+    .attr("height", function(d) { return height - y(d.y); });
+
+  svg.append("g")
+    .attr("class", "x axis")
+    .attr("transform", "translate(0," + height + ")")
+    .call(xAxis);
+
+  svg.append("g")
+    .attr("class", "y axis")
+    .call(yAxis);
+
+  svg.append("line")          // attach a line
+    .style("stroke", "red")  // colour the line
+    .attr('stroke-width', 3)
+    .attr("x1", x(one_en_intensity_ekWh_sqft))     // x position of the first end of the line
+    .attr("y1", y(0))      // y position of the first end of the line
+    .attr("x2", x(one_en_intensity_ekWh_sqft))     // x position of the second end of the line
+    .attr("y2", 0);
+};
+
+function select_building(building_id, Master, DimCity, DimOperationType, dists) {
+  m = markers[building_id+'r']; 
+  on_select(m, Master, DimCity, DimOperationType, dists);
+  $("#" + building_id + 'r').toggleClass('selected');
+  var scroller = $('#results-table').dataTable().fnSettings().nTable.parentNode;                                              
+  $(scroller).scrollTo( $("#"+building_id+"r"), 1 );
+}
+
+//---------------- hash stuff ---------------------------------------------------------------------------------
+var hash_fn = {
+
+  set_url_hash: function(dim_id, type, building_id) {
+    window.location.hash = dim_id + '+' + type + '+' + building_id;
+  },
+
+  go_to_hash_state: function(Master, DimCity, DimOperationType, DimOrganization, hash_state) {
+    // returns true if successful
+    if (typeof hash_state === 'undefined') { hash_state = window.location.hash.split('+'); }
+    else { hash_state = hash_state.split('+'); }
+    cat_id = hash_state[0].slice(1, hash_state[0].length);
+    type = hash_state[1];
+    building_id = hash_state[2];
+    var dists = get_dists(Master),
+        rows;
+
+    try {
+      if (type == 0) {
+        rows = Master.filter( function(obj) { return obj.dim_organization == +cat_id; });
+        var organization = DimOrganization.filter(function(obj) { return obj.dim_organization == +cat_id; })[0].organization;
+        do_everything(rows, Master, DimCity, DimOperationType, DimOrganization, dists);
+        select_building(building_id, Master, DimCity, DimOperationType, dists);
+        d3.select("#results-title").text('Showing results for: ' + organization + " (Organization)" )
+
+      } else if (type == 1) {
+        rows = Master.filter( function(obj) { return obj.dim_operation_type == +cat_id; });
+        var operation_type = DimOperationType.filter(function(obj) { return obj.dim_operation_type == +cat_id; })[0].operation_type;
+        do_everything(rows, Master, DimCity, DimOperationType, DimOrganization, dists);
+        d3.select("#results-title").text('Showing results for: ' + operation_type + " (Building Type)");
+      }
+    }
+    catch(err) { return false; }
+    return true;
+  },
+
+  reset_hash: function() {
+    history.pushState('', document.title, window.location.pathname);
+  }
+}
+
+  </script>
+
+  <body>
+    <div id='container'>
+      <h1 id="title">Public Building Energy Consumption in Ontario</h1>
+      <div id="intro">
+        <p>This page allows you to explore the energy consumption of public buildings in Ontario. It is intended to highlight the best and worst performing buildings and help organizations identify good candidates for retrofit. It is also for individuals to see how the public buildings near them compare to others in Ontario. </p>
+
+        <p>To get started, search for a building name, organization (e.g. City of Toronto) or type of building type (e.g. Public Libraries). Then select the buildings you are interested in by clicking the results list or pins on the map. Once selected, an energy report for that building will appear below the map. </p>
+
+        <p>The energy efficiency of each building is ranked in two ways: in comparison to buildings of the same type, and in comparison to buildings owned by the same organization. </p>
+      </div>
+      
+      <div id="search-div">
+        <input class="typeahead form-control" type="text" placeholder="Search for a building, organization, or type of building">
+      </div>
+      <div id="results-title"></div>
+      <div id="map-and-list">
+        <div id="results-container">
+          <table id="results-table" class="display" cellspacing="0">
+            <thead>
+              <tr> <th>Organization Rank</th> <th>Building Type Rank</th> <th>Building Name</th> </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+        <div id="map_canvas"></div>
+      </div>
+    </div>
+  </body>
+
+  <footer>
+    <div id="footnote">
+
+      <p>Note: ekWh stands for equivalent kilowatt hours, which includes heating, cooling and other electrical energy use. sqft stands for square feet of floor area. </p>
+
+      <p>This work uses <a class='my-link' href="https://www.ontario.ca/data/energy-use-and-greenhouse-gas-emissions-broader-public-sector">utility data for 2012</a>, and was made possible by the Government of Ontario's <a class="my-link" href="https://www.ontario.ca/open-data">Open Data Catalogue</a>. The process used to clean and prepare the data can be found in the <a href="https://nbviewer.ipython.org/github/smcmurtry/building_energy_webapp/blob/master/python/data_cleaning.ipynb">python code</a>.</p>
+
+      <p>Created by <a class='my-link' href="https://stephenmcmurtry.org/">Stephen McMurtry</a>, &copy; 2015. </p>
+
+    </div>
+  </footer>
+
+  </html>

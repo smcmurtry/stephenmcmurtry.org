@@ -1,0 +1,536 @@
+<!DOCTYPE html>
+<head>
+  <meta charset="utf-8">
+  <link rel="stylesheet" type="text/css" href="resources/icon.min.css"/>
+  <link rel="stylesheet" type="text/css" href="dir_christmas_bird_count/christmas_bird_count.css"/>
+  <script>
+    (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+    (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+    m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+    })(window,document,'script','//www.google-analytics.com/analytics.js','ga');
+
+    ga('create', 'UA-59457353-1', 'auto');
+    ga('send', 'pageview');
+
+  </script>
+  <title>Peterborough Christmas Bird Count</title>
+  <meta name="description" content="Interactive visualization of the Peterborough, Ontario Christmas Bird Count results since 1952.">
+</head>
+
+<body>
+  <div class="main">
+    <div class="div-header">
+      <h1>Peterborough Christmas Bird Count</h1>
+      <div class="legend">
+        <div class="col-header-div ma"><div class="col-header-txt ma">Max</div><i class="sort icon" name='Max'></i></div>
+        <div class="col-header-div me"><div class="col-header-txt me">Median</div><i class="sort icon" name='Median'></i></div>
+        <div class="col-header-div sp"><div class="col-header-txt sp">Species</div><i class="sort icon" name='Species'></i></div>
+        <div class="select">Circle area indicates the number of birds counted in a given year. Select a scale:</div>
+        <div>
+          <div class="a">
+            <input type="radio" value="1" name="rad" checked>
+            <div class="button-desc">One scale for each species. This allows comparison between years for each species individually.</div>
+          </div>
+          <div class="b">
+            <input type="radio" value="2" name="rad">
+            <div class="button-desc">One scale for entire chart. This allows comparison between species.</div>
+            </div>
+          </div>
+        </div>
+    </div>
+    <div class="div-body"></div>
+
+    <div>        
+      <p><i>CP = Species observed in count period but not during official count</i></p>
+      <a rel="license" href="http://creativecommons.org/licenses/by-nc/4.0/"><img alt="Creative Commons License" style="border-width:0" src="https://i.creativecommons.org/l/by-nc/4.0/88x31.png" /></a><br /><span xmlns:dct="http://purl.org/dc/terms/" href="http://purl.org/dc/dcmitype/InteractiveResource" property="dct:title" rel="dct:type">Peterborough Christmas Bird Count Dataviz</span> by <a xmlns:cc="http://creativecommons.org/ns#" href="http://stephenmcmurtry.org" property="cc:attributionName" rel="cc:attributionURL">Stephen McMurtry</a> is licensed under a <a rel="license" href="http://creativecommons.org/licenses/by-nc/4.0/">Creative Commons Attribution-NonCommercial 4.0 International License</a>.
+    </div>
+  </div>
+</body>
+<script src="resources/d3.v3.min.js"></script>
+<script>
+
+var data_path = 'dir_christmas_bird_count/'; //dir_christmas_bird_count/
+
+var window_width;
+if ((window.innerWidth-30) > 1400) { window_width = 1400; }
+else { window_width = window.innerWidth - 30; } // this includes the left margin and vertical scrollbar
+
+d3.select(".main").style("width", window_width + 'px');
+d3.select(".div-header").style("width", window_width + 'px');
+
+var margin_t = {top: 3, right: 300, bottom: 0, left: 10}, // table
+  margin_a = {top: 27, right: 300, bottom: 0, left: 10}, // axis
+  margin_h = {top: 23, right: 300, bottom: 12, left: 10}, // histogram
+  width = window_width - margin_t.right - margin_t.left, // 1100
+  height_t = 2900 - margin_t.top - margin_t.bottom,
+  height_a = 30 - margin_a.top - margin_a.bottom,
+  height_h = 100 - margin_h.top - margin_h.top,
+  row_h = 20,
+  circle_max_size = 10,//9,//14,
+  start_year = 1952,
+  end_year = 2014,
+  button_legend_top = 125,
+  button_legend_left = width+50,
+  trans_t = 700,
+  max_col_start = width + 28,
+  max_col_end = width + 60,
+  median_col_start = width + 78,
+  median_col_end = width + 130,
+  species_col_start = width + 150,
+  species_header_offset = 10,
+  col_header_bottom = 223,
+  trunc_chars = 19,
+  sort_dict = {'Max': {'ascending': 'max_sort_a', 'descending': 'max_sort_d'},
+               'Median': {'ascending': 'median_sort_a', 'descending': 'median_sort_d'},
+               'Species': {'ascending': 'species_sort_a', 'descending': 'species_sort_d'}};
+
+var year_col_w, bar_val, sort_prop, scale_type, bar_val, yAxis;
+
+sort_prop = 'orig_sort';
+scale_type = 1;
+
+var x = d3.scale.linear()
+  .range([0, width]);
+
+var formatYears = d3.format("0000");
+
+var xAxis = d3.svg.axis()
+  .scale(x)
+  .orient("top")
+  .tickFormat(formatYears);
+
+var rScale = d3.scale.pow().exponent(.5) // changed from .linear() which is wrong!!! the circle's area should map linearly to # of observations, not the radius!!!
+               .range([0, circle_max_size]);
+
+var svg_hist = create_svg(".div-header", margin_h, width, height_h);
+var svg_header = create_svg(".div-header", margin_a, width, height_a);
+var svg = create_svg(".div-body", margin_t, width, height_t);
+
+d3.json(data_path + "web_data_cp.json", function(data) {
+
+  x.domain([start_year, end_year]);
+
+  year_col_w = x(2001) - x(2000);
+
+  svg_header.append("g")
+    .attr("class", "x axis")
+    .call(xAxis);
+
+  var header = svg_header.append("g").attr("class", "header");
+
+  d3.selectAll(".col-header-div").style("top", col_header_bottom + "px");
+
+  d3.selectAll(".ma").style("left", max_col_start + "px");
+  d3.selectAll(".me").style("left", median_col_start + "px");
+  d3.selectAll(".sp").style("left", (species_col_start+species_header_offset) + "px");
+
+  draw_rows();
+
+  d3.selectAll("input").on("change", function() { 
+    scale_type = this.value;
+    set_circle_size();
+  })
+
+  d3.selectAll(".sort")
+    .on("click", function(p) {
+      var sel = d3.select(this);
+      if (sel.attr("class") == "sort icon" || sel.attr("class") == "sort ascending icon") {
+        d3.selectAll(".sort").attr("class", "sort icon");
+        sel.attr("class", "sort descending icon");
+        sort_prop = sort_dict[sel.attr("name")]['descending'];
+
+      } else if ( sel.attr("class") == "sort descending icon") {
+        d3.selectAll(".sort").attr("class", "sort icon");
+        sel.attr("class", "sort ascending icon");
+        sort_prop = sort_dict[sel.attr("name")]['ascending']
+      }
+      set_y_position();
+  })
+
+  function set_y_position() {
+
+    d3.selectAll("circle")//.transition().duration(trans_t)
+      .attr("cy", function(d) { return (d[sort_prop]+1)*row_h; });
+    d3.selectAll(".mouse_rect")//.transition().duration(trans_t)
+      .attr("y", function(d) { return d[sort_prop]*row_h+ row_h/2; });
+    d3.selectAll('.div-body .value')//.transition().duration(trans_t)
+      .attr("y", function(d) { return (d[sort_prop]+1)*row_h - circle_max_size - 1; });
+    d3.selectAll(".column")//.transition().duration(trans_t)
+      .attr("y", function(d) { return (d[sort_prop]+1)*row_h + 5; });
+    d3.selectAll(".text-rect")//.transition().duration(trans_t)
+      .attr("y", function(d) { return (d[sort_prop]+1)*row_h - circle_max_size - 12; } )
+  }
+
+  function set_circle_size() {
+    if (d3.selectAll("circle").attr("r") > 0) {
+      d3.selectAll("circle")
+        .transition()
+        .duration(trans_t)
+        .call(set_r)
+    } else {
+      d3.selectAll("circle")
+        .call(set_r)
+    }
+
+    function set_r(sel) {
+      sel.attr("r", function(d) { 
+        if (scale_type == 1) { rScale.domain([0, d.max_count]); } 
+        else { rScale.domain([0, 3400]); }
+        return rScale( (d.count=='CP' ? 1 : d.count) ); 
+      })
+    }
+  }
+
+  function mouseover_1(p) {
+    var year = d3.select(this).data()[0].yr;
+
+    d3.select(this).classed({"selected": true});
+
+    d3.select(".div-header")
+      .selectAll("text.value")
+      .filter(function(d) { return d.yr == year; })
+      .style("display", "block");
+    add_hover_tick(year);
+  
+d3.selectAll(".bar-masking")
+  .filter(function(d) { return d.yr == year; })
+  .style("display", "block");
+
+  }
+
+  function mouseover_2(p) {
+    var year = d3.select(this).data()[0].year;
+    var row_i = d3.select(this).data()[0][sort_prop];
+
+    d3.selectAll("circle")
+      .filter(function(d) { return d.year == year && d[sort_prop] == row_i; })
+      .classed({"selected": true});
+
+    d3.selectAll(".species")
+      .filter(function(d) { return d[sort_prop] == row_i; })
+      .classed({"selected": true});
+
+    d3.selectAll(".text-rect")
+      .filter(function(d) { return d.year == year && d[sort_prop] == row_i; })
+      .style("display", "block");
+
+    d3.selectAll("text.value")
+      .filter(function(d) { return d.year == year && d[sort_prop] == row_i; })
+      .style("display", "block");
+
+    add_hover_tick(year);
+  }
+
+  function mouseout_1(p) {
+    d3.select(this).classed({"selected": false});
+    d3.select(".div-header").selectAll("text.value").style("display", "none");
+    d3.selectAll(".selected-year").remove();
+    d3.selectAll(".bar-masking").style("display", "none");
+  }
+
+  function mouseout_2(p) {
+    d3.selectAll(".selected").classed({"selected": false});
+    d3.selectAll("text.value").style("display", "none");
+    d3.selectAll(".text-rect").style("display", "none");
+    d3.selectAll(".selected-year").remove();
+  }
+
+  function add_hover_tick(year) {
+    var hover_tick = svg_header.selectAll(".axis")
+       .append('g')
+       .attr("class", "tick selected-year")
+       .attr("transform", "translate(" + x(year) + ",0)")
+    hover_tick.append("rect")
+      .attr("width", 38)
+      .attr("height", 20)
+      .attr("x", -19)
+      .attr("y", -25)
+      .attr("stroke", "white")
+      .attr("fill", "white")
+      .attr("opacity", 0.5);
+    hover_tick.append('text')
+       .attr("dy", '0em')
+       .attr("y", -9)
+       .attr("x", 0)
+       .style("text-anchor", "middle")
+       .text(year);
+    hover_tick.append("line")
+      .attr("y2", -6)
+      .attr("x2", 0);
+
+    var hover_tick_hist = svg_hist.selectAll(".axis")
+       .append('g')
+       .attr("class", "tick selected-year")
+       .attr("transform", "translate(" + x(year) + ",0)")
+       .append("line")
+       .attr("y2", 6)
+       .attr("x2", 0);
+  }
+
+  function compile_data() {
+    var points = [],
+        rows = [];
+
+    for (var j = 0; j < data.length; j++) {
+      
+      var row = {};
+      for (var k = Object.keys(data[j]).length - 1; k >= 0; k--) {
+        var key = Object.keys(data[j])[k];
+        if (key != 'observations') { row[key] = data[j][key]; }
+        row['orig_sort'] = j;
+      };
+      rows.push(row);
+
+      for (var i = 0; i < data[j]['observations'].length; i++) {
+        var point = {};
+
+        point['year'] = data[j]['observations'][i][0];
+        point['count'] = data[j]['observations'][i][1];
+
+        for (var k = Object.keys(row).length - 1; k >= 0; k--) {
+          var key = Object.keys(row)[k];
+          point[key] = row[key];
+        };
+        points.push(point);
+      }
+    }
+    return [points, rows];
+  }
+
+  function draw_rows() {
+
+    var res = compile_data();
+    var points = res[0],
+        rows = res[1];
+    svg.selectAll("circle")
+      .data(points)
+      .enter()
+      .append("circle")
+      .attr("cx", function(d) { return x(d.year)})
+      .attr("class", function(d) {
+        if (d.count == d.median_count) { return "median"; }
+        else if (d.count == d.max_count) { return "max"; }
+        return "normal";
+      });
+
+    svg.selectAll(".text-rect")
+      .data(points)
+      .enter()
+      .append("rect")
+      .attr("class", "text-rect")
+      .attr("x", function(d) { return x(d.year) - d.count.toString().length*4; })// circle_max_size; })
+      .attr("width", function(d) { return (d.count > 0 || d.count == 'CP') ? d.count.toString().length*4*2 : 0; })
+      .attr("height", 11)
+      .style("fill", "white")
+      .style("opacity", 0.5)
+      .style("display", "none");
+
+    svg.selectAll("value")
+      .data(points)
+      .enter()
+      .append("text")
+      .attr("text-anchor", "middle")
+      .attr("x", function(d) { return x(d.year); })
+      .attr("class", "value")
+      .text(function(d) { return val_formatter_2(d.count); })
+      .style("fill", "black")
+      .style("display", "none");
+
+    svg.selectAll('.column .max')
+      .data(rows)
+      .enter()
+      .append("text")
+      .attr("class", "column max")
+      .attr("text-anchor", "end")
+      .attr("x", max_col_end)
+      .text(function(d) { return d.max_count; });
+
+    svg.selectAll('.column .median')
+      .data(rows)
+      .enter()
+      .append("text")
+      .attr("text-anchor", "end")
+      .attr("x", median_col_end)
+      .attr("class", "column median")
+      .text(function(d) { return d.median_count; });
+
+    svg.selectAll('.column .species')
+      .data(rows)
+      .enter()
+      .append("text")
+      .attr("x", species_col_start)
+      .attr("class", "column species")
+      .text(function(d) { return truncate(d.name, trunc_chars, "..."); })
+      .append("title")
+      .text(function(d) { return d.name; });
+
+    svg.selectAll(".mouse_rect")
+      .data(points) 
+      .enter()
+      .append("rect")
+      .attr("class", "mouse_rect")
+      .attr("x", function(d) { return x(d.year) - year_col_w/2; })
+      .attr("width", year_col_w)
+      .attr("height", row_h)
+      .attr("opacity", 0)
+      .on("mouseover", mouseover_2)
+      .on("mouseout", mouseout_2);
+
+    set_y_position();
+    set_circle_size();
+  }
+
+  d3.json(data_path + "bar_data.json", function(bar_data) {
+
+    var y = d3.scale.linear()
+      .range([height_h, 0]);
+
+    var button_container = d3.select(".div-header").append("div")
+      .attr("class", "button-container")
+      .style("left", button_legend_left + "px")
+      .style("top", button_legend_top + "px");
+
+    var rad_1 = button_container.append("div")
+      .attr("class", "radio");
+    rad_1.append("input")
+      .attr("type", "radio")
+      .attr("name", "optradio")
+      .attr("value", "1")
+      .attr("checked", true)
+    rad_1.append("div")
+      .attr("class", "button-label")
+      .text("Total number of species counted");
+
+    var rad_2 = button_container.append("div")
+      .attr("class", "radio");
+    rad_2.append("input")
+      .attr("type", "radio")
+      .attr("name", "optradio")
+      .attr("value", "2")
+    rad_2.append("div")
+      .attr("class", "button-label")
+      .text("Total number of individual birds counted");
+
+    draw_bars();
+
+    d3.selectAll(".button-container input").on("change", 
+      function() {
+        bar_val = this.value; 
+        set_bar_positions(); }
+    )
+
+    function set_bar_positions() {
+      y.domain([0, d3.max(bar_data, function(d) { return accessor(d); })]);
+      yAxis.scale(y);
+      svg_hist.select(".y").call(yAxis);
+
+      svg_hist.selectAll(".bar")
+          .attr("transform", function(d) { return "translate(" + (x(d.yr)-year_col_w/2) + "," + y(accessor(d)) + ")"; });
+      
+      svg_hist.selectAll(".bar-masking")
+        .attr("y", function(d) { return y(accessor(d)) - 15; })
+        .attr("x", function(d) { return x(d.yr) - accessor(d).toString().length*4; })
+        .attr("width", function(d) { return accessor(d).toString().length*4*2; })
+
+      svg_hist.selectAll(".value")
+        .attr("y", function(d) { return y(accessor(d)) - 5; })
+        .text(function(d) { return accessor(d); })
+
+      d3.selectAll(".bar .normal")    
+        .attr("height", function(d) { return height_h - y(accessor(d)); })
+
+
+    }
+
+    function accessor(d) {
+      if (bar_val == 1) { return d.n_spc; } 
+      else { return d.tot_count; }
+    }
+
+    function draw_bars() {
+      svg_hist.append("g")
+        .attr("class", "x axis")
+        .attr("transform", "translate(0," + (height_h+5) + ")")
+        .call(xAxis.orient("bottom"));
+
+      yAxis = d3.svg.axis()
+        .orient("right")
+        .ticks(5)
+        .tickFormat(val_formatter_1);
+      
+      svg_hist.append("g")
+        .attr("class", "y axis")
+        .attr("transform", "translate(" + (width+10)+ ", 0)");
+
+      var bar = svg_hist.selectAll(".bar")
+          .data(bar_data)
+        .enter().append("g")
+          .attr("class", "bar");
+      
+      bar.append("rect")
+        .attr("class", "normal")
+        .attr("x", 1)
+        .attr("width", year_col_w - 2)
+        .on("mouseover", mouseover_1)
+        .on("mouseout", mouseout_1);
+
+      svg_hist.selectAll(".bar-masking")
+        .data(bar_data, function(d) { return d.yr; })
+        .enter()
+        .append("rect")
+        .attr("class", "bar-masking")
+        .attr("height", 11)
+        .style("fill", "white")
+        .style("opacity", 0.5)
+        .style("display", "none");
+
+      svg_hist.selectAll("text")
+        .data(bar_data, function(d) { return d.yr; })
+        .enter()
+        .append("text")
+        .attr("text-anchor", "middle")
+        .attr("x", function(d) { return x(d.yr); })
+        .attr("class", "value")
+        .style("fill", "black")
+        .style("display", "none");
+      bar_val = 1;
+      set_bar_positions();
+    }
+  })
+});
+
+function val_formatter_1(val) {
+  return (val > 1000 ? val/1000+'k' : val); 
+}
+
+function val_formatter_2(val) {
+  return (val == 0 ? '' : val);
+}
+
+function create_svg(id, margin, w, h) {
+  return d3.select(id).append("svg")
+           .attr("width", w + margin.left + margin.right)
+           .attr("height", h + margin.top + margin.bottom)
+           .append("g")
+           .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+}
+
+function truncate(str, maxLength, suffix) {
+  if (str.length > maxLength) {
+    str = str.substring(0, maxLength + 1); 
+    str = str.substring(0, Math.min(str.length, str.lastIndexOf(" ")));
+    str = str + suffix;
+  }
+  return str;
+}
+
+function add_label(selection, x, y, text, anchor, class_str) {
+  return selection.append("text")
+                  .attr("text-anchor", anchor)
+                  .attr("y", y)
+                  .attr("x", x)
+                  .attr("class", class_str)
+                  .text(text);
+}
+
+</script>

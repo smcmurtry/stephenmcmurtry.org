@@ -1,0 +1,274 @@
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/3.5.6/d3.js"></script>
+  <link rel="stylesheet" type="text/css" href="dir_academic_search/prototype.css"/>
+  <title>Network Graph</title>
+  <meta name="description" content="Academic Network Graph">
+</head>
+
+<body></body>
+
+<script>
+var RecId;
+// console.log(window.location.hash > 1)
+RecId = +window.location.hash.slice(1);
+
+if ( RecId != RecId || RecId == 0) {
+  RecId = 600; 
+  window.location.hash = RecId;
+}
+console.log(RecId)
+var url = get_url(RecId);
+httpGetAsync(url, callback);
+// console.log(url)
+var hovercard = d3.select('body')
+  .append('div')
+  .attr('class', 'hovercard');
+
+var title = hovercard.append('div')
+  .attr('class', 'title');
+
+var citations = hovercard.append('div')
+  .attr('class', 'citations');
+
+var width = 1000,
+    height = 800,
+    margin = 30;
+
+var node_colour = {'Orig':"#2c7fb8", 'Ref': "#7fcdbb", 'Citing': 'purple'};
+
+var force = d3.layout.force()
+    .charge(-500)
+    .linkDistance(100)
+    .size([width, height]);
+
+var r_scale = d3.scale.pow().exponent(.5)
+  .range([3, 20]);
+
+var t_scale = d3.scale.linear()
+  .range([margin, height-margin]);
+
+var formatYears = d3.format("0000");
+
+var yAxis = d3.svg.axis()
+  .orient("left")
+  .ticks(5)
+  .tickFormat(formatYears);
+
+var canvas = d3.select("body").append("canvas")
+    .attr("width", width)
+    .attr("height", height);
+
+var body_margin = d3.select('body').style('margin').slice(0, -2);
+
+var svg = d3.select("body").append("svg")
+    .style('position', 'absolute')
+    .style('left', body_margin + 'px')
+    .style('top', body_margin + 'px')
+    .attr("width", width)
+    .attr("height", height)
+    .append('g');
+
+var svg_y_axis = svg.append("g")
+    .attr("transform", "translate(" + 2*margin + "," + 0 + ")")
+    .attr("class", "y axis");
+
+var circle = svg.append('circle')
+  .style('display', 'none');
+
+function get_url(RecId) {
+  return 'http://ec2-52-23-195-60.compute-1.amazonaws.com:5000/' + RecId;
+}
+
+function httpGetAsync(theUrl, callback) {
+  //from http://stackoverflow.com/questions/247483/http-get-request-in-javascript
+  var xmlHttp = new XMLHttpRequest();
+  xmlHttp.onreadystatechange = function() { 
+    if (xmlHttp.readyState == 4 && xmlHttp.status == 200) {
+      callback(xmlHttp.responseText);
+    }
+  }
+  xmlHttp.open("GET", theUrl, true); // true for asynchronous 
+  xmlHttp.send(null);
+}
+
+function callback(response_text) {
+  console.log('response recieved');
+  var data = JSON.parse(response_text);
+  do_everything(data);
+};
+
+function do_everything(data) {
+  
+  var nodes = data['nodes'],
+      links = data['links'];
+
+  nodes.forEach(function(d, i) {
+    if (d.CreationDate != undefined) {
+      d.date = +d.CreationDate.substring(0, 4);
+    } else {
+      d.date = 2017;
+    }
+    if (d.CitationCount == undefined) { d.CitationCount = 0; }
+    if (d.Title == undefined) { d.Title = 'NA'; }
+  });
+
+  var min_yr = d3.min(nodes, function(d) { return d.date; });
+  var max_yr = d3.max(nodes, function(d) { return d.date; });
+  t_scale.domain([min_yr, max_yr]);
+  yAxis.scale(t_scale);
+  svg_y_axis.call(yAxis);
+
+  nodes.forEach(function(d, i) {
+    d.y = t_scale(d.date);
+    d.RecId = +d.RecId;
+  });
+
+  var edges = [];
+  links.forEach(function(e) {
+      var sourceNode = nodes.filter(function(n) {
+          return n.RecId === e.SourceRecId;
+          })[0];
+      var targetNode = nodes.filter(function(n) {
+          return n.RecId === e.TargetRecId;
+          })[0];
+
+      edges.push({'source': sourceNode, 'target': targetNode});
+  });
+
+  r_scale.domain([0, d3.max(nodes, function(d) { return d.CitationCount; })]);
+
+  var context = canvas.node().getContext("2d");
+  var active_node = null;
+
+  // console.log(nodes)
+  // console.log(links)
+
+  force.nodes(nodes)
+      .links(edges)
+      .on("tick", tick)
+      .start();
+
+  function tick() {
+    context.clearRect(0, 0, width, height);
+
+    // draw links
+    context.strokeStyle = "#ccc";
+    context.beginPath();
+    edges.forEach(function(d) {
+      context.moveTo(d.source.x,  d.source.y);
+      context.lineTo(d.target.x, d.target.y);
+    });
+    context.stroke();
+
+    // draw nodes
+    nodes.forEach(function(d, i) {
+      d.r = r_scale(d.CitationCount);
+      d.y = t_scale(d.date);
+      var colour = node_colour[d.Type];
+      draw_circle(d.x, d.y, d.r, colour);
+
+    });
+  }
+
+  window.addEventListener('mousemove', draw, false);
+  window.addEventListener('click', click, false);
+
+  function draw_circle(cx, cy, r, fill_colour) {
+    context.fillStyle = fill_colour;
+    context.beginPath();
+    context.moveTo(cx, cy);
+    context.arc(cx, cy, r, 0, 2 * Math.PI);
+    context.fill();
+  }
+
+  function draw_svg_circle(cx, cy, r, fill_colour) {
+    circle.attr('cx', cx)
+      .attr('cy', cy)
+      .attr('r', r)
+      .attr('fill', fill_colour)
+      .style('display', 'block');
+  }
+
+  function draw(e) {
+    var pos = getMousePos(canvas, e);
+
+    if (active_node != null && !is_mouseover(pos, active_node)) {
+      deactivate_node(active_node);
+    }
+
+    nodes.forEach(function(d, i) {
+      if (is_mouseover(pos, d)) {
+        activate_node(d);
+        draw_svg_circle(d.x, d.y, d.r, 'red');
+        return;
+      }
+    })
+  }
+
+  function is_mouseover(pos, node) {
+    var dist = euclidean_distance(pos.x, node.x, pos.y, node.y);
+    if (dist <= node.r) { return true; }
+    else { return false; }
+  }
+
+  function getMousePos(canvas, evt) {
+    var rect = canvas.node().getBoundingClientRect();
+    return {
+      x: evt.clientX - rect.left,
+      y: evt.clientY - rect.top
+    };
+  }
+
+  function activate_node(node) {
+    var x_offset = 30;
+    title.html(node.Title);
+    hovercard.style('display', 'block')
+      .style('top', node.y + 'px')
+      .style('left', (node.x + x_offset) + 'px')
+    d3.select('body').style('cursor', 'pointer');
+    active_node = node;
+  }
+
+  function deactivate_node(node) {
+    hovercard.style('display', 'none');
+    d3.select('body').style('cursor', 'default');
+    circle.style('display', 'none');
+    active_node = null;
+  }
+
+  function click() {
+    if (active_node != null) {
+      var new_RecId = active_node.RecId;
+      deactivate_node(active_node);
+      window.removeEventListener('mousemove', draw, false);
+      window.removeEventListener('click', click, false);
+
+      window.location.hash = new_RecId;
+      httpGetAsync(get_url(new_RecId), callback);
+      // open_link(active_node.RecId);
+    }
+  }
+}
+
+function open_link(RecId) {
+  try {
+    var link = get_paper_url(RecId);
+    var win = window.open(link, '_blank');
+    win.focus();
+  } catch (e) {
+    console.log(e);
+  }
+}
+
+function get_paper_url(RecId) {
+  return 'http://inspirehep.net/record/' + RecId;
+}
+
+function euclidean_distance(x1, x2, y1, y2) {
+  return Math.pow(Math.pow(x2-x1, 2) + Math.pow(y2-y1, 2), 0.5);
+}
+
+</script>

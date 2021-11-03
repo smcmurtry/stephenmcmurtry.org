@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/3.5.6/d3.js"></script>
+  <script src="dir_id_system/gscroll.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/topojson/1.6.19/topojson.min.js"></script>
+  <script src="resources/queue.js"></script>
+  <script src="dir_id_system/draw_id_cards.js"></script>
+  <script src="dir_id_system/draw_vote_box.js"></script>
+  <title>The Israeli ID System - Interactive</title>
+  <meta name="description" content="The Israeli ID System - Interactive">
+  <link href="//netdna.bootstrapcdn.com/bootstrap/3.3.2/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" type="text/css" href="dir_id_system/id_system.css"/>
+  <script>
+    (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+    (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+    m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+    })(window,document,'script','//www.google-analytics.com/analytics.js','ga');
+
+    ga('create', 'UA-59457353-1', 'auto');
+    ga('send', 'pageview');
+
+  </script>
+</head>
+
+<body>
+  <div id='screen'></div>
+  <div id='main'>
+    <div id='intro'>
+        <div class='h1'>IDENTITY CRISIS</div>
+        <div class='h2'>THE ISRAELI ID SYSTEM</div>
+        <div class='h3'>
+          <div >By <a href='http://stephenmcmurtry.org/'>Stephen McMurtry</a></div>
+          <div>
+            Adapted with permission from a Creative Commons <a href='http://visualizingpalestine.org/visuals/identity-crisis-the-israeli-id-system'>infographic</a> by <a href='http://visualizingpalestine.org/'>Visualizing Palestine</a>
+          </div>
+          <div id='license'>
+            <a href='http://creativecommons.org/licenses/by-nc-sa/4.0/'>           
+              <div class='image' id='cc'></div>
+              <div class='image' id='by'></div>
+              <div class='image' id='nc'></div>
+              <div class='image' id='sa'></div>
+            </a>
+          </div>
+        </div>
+
+        <div class='intro-text'>
+          <p id='p1'>
+            Since 1967, the Israeli Government has been the de-facto sovereign power in control of the whole of historic Palestine, including Gaza, the West Bank, and Israel.
+          </p>
+          <p id ='p2'>
+            Israeli authorities control the Population Registry and ID System, restricting where Palestinians can live, their access to services and their participation in the political system.
+          </p>
+
+        </div>
+    </div>
+    <div id='content'>
+      <svg id='map'></svg>
+    </div>
+    <div id='legend'>
+      <div class='legend-entry'>
+        <div class='can-live-rect'></div>
+        <div class='legend-text'>WHERE YOU CAN LIVE</div>
+      </div>
+      <div class='legend-entry'>
+        <div class='cant-live-rect'></div>
+        <div class='legend-text'>WHERE YOU CAN'T LIVE</div>
+      </div>
+      <div class='legend-entry'>
+        <img src='dir_id_system/yes_vote.png'></img>
+        <div class='legend-text'>CAN VOTE IN ISRAELI PARLIAMENT</div>
+      </div>
+      <div class='legend-entry'>
+        <img src='dir_id_system/no_vote.png'></img>
+        <div class='legend-text'>CAN'T VOTE IN ISRAELI PARLIAMENT</div>
+      </div>
+    </div>
+
+    <div id='sections'>
+      <section class="step" id="scroll-button">
+        <span class="glyphicon glyphicon-chevron-down"></span>
+        Scroll
+      </section>
+      <section class="step">
+      <div class='title'>
+        <div class='id-card-div left' id='c1'></div>
+        <div class='vote-svg right yes'></div>
+      </div>
+          <span class='bold'>Free</span> to live throughout Israel and 60% of the occupied West Bank.
+      </section>
+      <section class="step">
+      <div class='title'>
+        <div class='id-card-div left' id='c2'></div>
+        <div class='vote-svg right yes'></div>
+      </div>
+        <span class='bold'>Barred</span> from living in <span class='bold'>68%</span>  of all towns in Israel by admissions committees.
+      </section>
+      <section class="step">
+      <div class='title'>
+        <div class='id-card-div left' id='c3'></div>
+        <div class='vote-svg right no'></div>
+      </div>
+        Access to most areas, but <span class='bold'>ID may be revoked</span> if living outside of Jerusalem.
+      </section>
+      <section class="step">
+      <div class='title'>
+        <div class='id-card-div left' id='c4'></div>
+        <div class='vote-svg right no'></div>
+      </div>
+        <span class='bold'>Barred</span> from living in all but <span class='bold'>40%</span>  of West Bank due to Israeli settler and military presence.
+      </section>
+      <section class="step">
+      <div class='title'>
+        <div class='id-card-div left' id='c5'></div>
+        <div class='vote-svg right no'></div>
+      </div>
+        <span class='bold'>Barred</span> from living outside of Gaza since 2007.
+      </section>
+      <section class="step">
+      <div class='title'>
+        <div class='id-card-div left' id='c6'></div>
+        <div class='vote-svg right no'></div>
+      </div>
+        <span class='bold'>Barred</span> from returning to live anywhere in Israel or Palestinian territory.
+      </section>
+      <div class='extra-space'></div>
+    </div>
+  </div>
+</body>
+
+<script>
+
+var data_path = "dir_id_system/";
+var window_w = window.innerWidth;
+var body = d3.select('body');
+var main = d3.select('#main');
+var intro = d3.select('#intro');
+var content = d3.select('#content');
+var vote_svg = d3.selectAll('.vote-svg');
+var map_svg = d3.select('#map');
+var id_card_div = d3.selectAll('.id-card-div');
+var sections = d3.select('#sections');
+var legend = d3.select('#legend');
+var extra_space = d3.select('.extra-space');
+var steps = d3.selectAll('.step');
+var title = d3.selectAll('.title');
+var background = d3.select('#background');
+
+var id_colours = ['#3E8FAD', '#4CADCE', '#6DCFF6', '#83C774', '#74AD69', '#949599'];
+var group_text = ['JEWISH ISRAELI CITIZENS', 'PALESTINIAN CITIZENS OF ISRAEL',
+  'EAST JERUSALEM PALESTINIANS', 'WEST BANK PALESTINIANS', 'GAZA STRIP PALESTINIANS',
+  'PALESTINIAN EXILES'];
+var pop_text = ['5.9M', '1.3M', '0.3M', '2.3M', '1.6M', '5.7M'];
+
+window.onresize = function(event) {
+  if (window_w != window.innerWidth) {
+    window_w = window.innerWidth;
+    refresh();
+  }
+};
+
+on_resize();
+
+
+function refresh() {
+  d3.selectAll('.id-card-div').selectAll('div').remove();
+  d3.selectAll('.id-card-div').selectAll('svg').remove();
+  d3.selectAll('.vote-svg').selectAll('svg').remove();
+  d3.select('#map').selectAll('g').remove();
+  on_resize();
+}
+
+function on_resize() {
+
+  d3.select(document.documentElement)
+      // .interrupt()
+    .transition()
+      .duration(700)
+      .tween("scroll", function() {
+        return function(t) { scrollTo(0, 0); };
+      })
+  start_load();
+  queue()
+    .defer(d3.json, data_path + "background_w_water.json")
+    .defer(d3.json, data_path + "water.json")
+    .defer(d3.json, data_path + "map_1.json")
+    .defer(d3.json, data_path + "map_2_corr.json")
+    .defer(d3.json, data_path + "map_3.json")
+    .defer(d3.json, data_path + "map_4.json")
+    .defer(d3.json, data_path + "map_5.json")
+    .await(ready);
+}
+
+function start_load() {
+  d3.select('#screen').style('z-index', '1000000');
+}
+
+function end_load() {
+  d3.select('#screen').style('z-index', '-100000');
+
+}
+
+function ready(error, background, water, map_1, map_2, map_3, map_4, map_5) {
+  if (error) throw error;
+
+  var map_width = window.innerHeight*(285/820.23);
+  var map_offset = 500/2 - map_width/2;
+
+  var card_width;
+  var vote_width;
+  var em;
+  var legend_w;
+  var g;
+  var maps = [];
+  var path = d3.geo.path().projection(null);
+
+  var main_width;
+  var body_width = +body.style('width').slice(0, -2);
+  var min_main_width = 300,
+      max_main_width = 800;
+  if (body_width < min_main_width) {
+    main_width = min_main_width;
+  } else if (body_width > max_main_width) {
+    main_width = max_main_width;
+  } else {
+    main_width = body_width - 14;
+  }
+
+  var auto_margin = (body_width-main_width)/2;
+  main.style('width', main_width + 'px');
+
+  if (body_width>=500){
+    card_width = 200;
+    vote_width = 100;
+    em = 16;
+    legend_w = 300;
+  }
+  if (body_width < 500) {
+    em = 12;
+    card_width = 100;
+    vote_width = 60;
+    legend_w = 180;
+  }
+  if (body_width < 400) {
+    em = 10;
+    legend_w = 150;
+  }
+
+  body.style('font-size', em + 'px');
+
+  var left_width = card_width+vote_width;
+  var right_width = main_width - left_width;
+  legend.style('width', legend_w + 'px');
+
+  draw_vote_box(vote_width);
+
+  draw_id_cards('#c1', card_width, id_colours[0], group_text[0], pop_text[0]);
+  draw_id_cards('#c2', card_width, id_colours[1], group_text[1], pop_text[1]);
+  draw_id_cards('#c3', card_width, id_colours[2], group_text[2], pop_text[2]);
+  draw_id_cards('#c4', card_width, id_colours[3], group_text[3], pop_text[3]);
+  draw_id_cards('#c5', card_width, id_colours[4], group_text[4], pop_text[4]);
+  draw_id_cards('#c6', card_width, id_colours[5], group_text[5], pop_text[5]);
+
+  function centre_vote_box() {
+    var vote_h = +vote_svg.style('height').slice(0, -2);
+    var card_h = +id_card_div.style('height').slice(0, -2);
+    var vote_margin = (card_h-vote_h) / 2
+    vote_svg.style('top', vote_margin + 'px');
+  }
+
+  centre_vote_box();
+
+  var title_height = d3.max([+vote_svg.style('height').slice(0, -2),
+          +id_card_div.style('height').slice(0, -2)]);
+  title.style('height', title_height + 'px');
+
+  steps.style('margin-bottom', (0.1*window.innerHeight) + 'px')
+
+  extra_space.style('height', (0.7*window.innerHeight) + 'px')
+
+  sections.style('width', left_width + 'px');
+
+  content.style('width', right_width + 'px')
+         .style('height', window.innerHeight + 'px');
+
+  var bp = +body.style('margin-top').slice(0, -2);
+  var body_margin_left = +body.style('margin-left').slice(0, -2);
+
+  legend.style('bottom', (body_margin_left+7) + 'px')
+        .style('left', (auto_margin) + 'px');
+
+  g = map_svg.attr("width", right_width)
+      .attr("height", window.innerHeight)
+      .append("g");
+  var sections_mt = 10*em;
+
+  sections.style('margin-top', sections_mt + 'px');
+
+  d3.select('#scroll-button')
+    .on('mouseover', function(d) {
+      d3.select('#scroll-button').style('opacity', 0.5)
+    })
+    .on('mouseout', function(d) {
+      d3.select('#scroll-button').style('opacity', 1)
+    });
+
+  d3.select(window)
+    .on('scroll', function() {
+      var content_viewportOffset = content.node().getBoundingClientRect();
+      var section_y = sections.node().getBoundingClientRect().top;
+
+      if (section_y <= sections_mt) {
+        content.style('position', 'fixed')
+          .style('top', 0 + 'px')
+          .style('left', content_viewportOffset.left + 'px');
+        legend.style('display', 'block');
+      } else {
+        content.style('position', 'static');
+        legend.style('display', 'none');
+      }
+    });
+
+  initialize_map();
+  step_fn(0, true);
+
+  window.setTimeout(add_scroll, 300);
+
+  function add_scroll() {
+    var gs = gscroll().container(sections);
+    gs(d3.selectAll('section.step'));
+    gs.on('active', function(i) {
+      step_fn(i, false);
+      d3.select('.can-live-rect')
+        .style('background-color', id_colours[i-1]);
+    });
+  }
+
+  function initialize_map() {
+    var _background = topojson.feature(background, background.objects.background_w_water);
+    var _water = topojson.feature(water, water.objects.water);
+    var map_vars = [map_1, map_1, map_2, map_3, map_4, map_5];
+    var map_fnames = ['map_1', 'map_1', 'map_2_corr', 'map_3', 'map_4', 'map_5'];
+
+    for (var i = 0; i < map_vars.length; i++) {
+      var _map = topojson.feature(map_vars[i], map_vars[i].objects[map_fnames[i]]);
+      maps.push(_map)
+    };
+
+    g.append("g")
+      .selectAll("path")
+        .data(_background.features)
+      .enter().append("path")
+        .attr("class", "riding")
+        .attr("d", path)
+        .attr("fill", '#DDDEE0');
+
+    // g.append("g")
+    //   .selectAll("path")
+    //     .data(_water.features)
+    //   .enter().append("path")
+    //     .attr("class", "riding")
+    //     .attr("d", path)
+    //     .style('opacity', 0.5)
+    //     .attr("fill", '#DDDEE0');// '#DDDEE0');// 'white');// '#89D3DE');
+
+    initialize_zoom();
+
+    function initialize_zoom() {
+      var b = path.bounds(_background),
+          s = .95 / Math.max((b[1][0] - b[0][0]) / right_width, (b[1][1] - b[0][1]) / window.innerHeight),
+          t = [(right_width - s * (b[1][0] + b[0][0])) / 2, (window.innerHeight - s * (b[1][1] + b[0][1]))/2 ];
+
+      g.attr("transform", "translate(" + t + ")scale(" + s + ")");
+    }
+  }
+  function step_fn(i, pg_load) {
+
+    d3.select('.access-layer').remove();
+    if (i < 6 && i > 0) {
+      g.append("g")
+        .attr('class', 'access-layer')
+        .selectAll("path")
+        .data(maps[i].features)
+        .enter().append("path")
+        .attr("class", "riding")
+        .attr("d", path)
+        .attr("fill", id_colours[i-1])
+    }
+    d3.selectAll('section.step')
+      .transition().duration(function(d, j){ return j == i ? 0 : 200 })
+        .style('opacity', function(d, j) {
+          return j == i ? 1 : j == i + 1 ? .1 : .001 })
+
+    if (pg_load) { end_load(); }
+  }
+}
+
+
+
+</script>

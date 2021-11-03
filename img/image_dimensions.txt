@@ -1,0 +1,4 @@
+images should be 900 px wide x 650 px tall, 
+at a resolution of 72 px/in
+
+or 12.5 in wide x 9.03 in tall

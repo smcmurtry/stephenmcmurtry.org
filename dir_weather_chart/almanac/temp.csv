@@ -1,0 +1,20 @@
+
+
+"Legend"
+"A","Accumulated"
+"B","More than one occurrence and estimated"
+"C","Precipitation occurred, amount uncertain"
+"E","Estimated"
+"F","Accumulated and estimated"
+"L","Precipitation may or may not have occurred"
+"M","Missing"
+"N","Temperature missing but known to be > 0"
+"S","More than one occurrence"
+"T","Trace"
+"Y","Temperature missing but known to be < 0"
+"[empty]","No data available"
+"^","The value displayed is based on incomplete data"
+"†","Data for this day has undergone only preliminary quality checking"
+"‡","Partner data that is not subject to review by the National Climate Archives"
+
+"Month","Day","Average Max. Temp. (°C)","Average Min. Temp. (°C)","Frequency of Precip. (%)","Highest Temp. (°C)","Highest Temp.Year","Highest Temp. Period","Highest Temp. Data Quality","Lowest Temp. (°C)","Lowest Temp. Year","Lowest Temp. Period","Lowest Temp. Data Quality","Greatest Precip. (mm)","Greatest Precip. Year","Greatest Precip. Period","Greatest Precip. Data Quality","Greatest Rainfall (mm)","Greatest Rainfall Year","Greatest Rainfall Period","Greatest Rainfall Data Quality","Greatest Snowfall (cm)","Greatest Snowfall Year","Greatest Snowfall Period","Greatest Snowfall Data Quality","Most Snow on the Ground (cm)","Most Snow on the Ground Year","Most Snow on the Ground Period","Most Snow on the Ground Data Quality"

@@ -1,0 +1,162 @@
+body {
+  font-family: Helvetica, sans-serif;
+  font-size:14px;
+  margin-top: 0px;
+/*  background-color: black;
+*/}
+
+/*.legend, .div-header, h1 {
+  background-color: black;
+}*/
+
+.axis path, .axis line {
+  fill: none;
+  stroke:#b6b6b6;
+  shape-rendering: crispEdges;
+}
+
+.tick text {
+  fill:#999;
+}
+
+.legend .select {
+  /*float: left;*/
+  height: 40px;
+  margin-right: 20px;
+}
+
+.legend {
+  float: left;
+}
+
+.select {
+  width: 700px;
+  margin-bottom: 5px;
+}
+
+text.column, .button-label, .col-header-txt {
+  font-size:14px;
+}
+
+.button-label, .select {
+  padding-top: 2px;
+}
+
+text.label {
+  font-size: 14px;
+  font-weight: bold;
+  fill: black;
+}
+
+text.value {
+  font-size:11px;
+  font-weight:bold;
+}
+
+text.column, .col-header-txt {
+  font-weight: bold;
+}
+
+.div-header {
+  position: fixed;
+  background-color: white;
+  /*height: 260px;*/
+}
+
+.div-body svg {
+  margin-top: 250px;
+}
+
+.main {
+  margin: 0px auto;
+}
+
+.legend input {
+  float: left;
+  margin-right: 10px;
+}
+
+.a {
+  /*margin-bottom: 10px;*/
+  position: absolute;
+  top: 95px;
+  left: 0px;
+}
+
+.b {
+   position: absolute;
+  top: 115px;
+  left: 0px; 
+}
+
+.button-desc {
+  /*float: right;*/
+  width: 800px;
+  padding-top: 2px;
+}
+
+.circle .max {
+  fill: blue;
+}
+
+.button-container {
+  position: absolute;
+  text-align: left;
+  width:200px;
+  height: 50px;
+}
+
+.button-container input { 
+  float: left; 
+}
+
+.button-container .radio {
+  margin-left: 10px;
+  margin-bottom: 10px;
+}
+
+.sort {
+  cursor: pointer;
+}
+
+.col-header-txt {
+  float: left;
+}
+
+.ma .col-header-txt {   width: 30px;}
+.me .col-header-txt  { width: 50px;}
+.sp .col-header-txt  { width: 54px;}
+
+.col-header-div {
+  position: absolute;
+  width: 90px;
+}
+
+.max {
+  /*fill: green;*/
+  /*fill: #7fc97f*/
+  fill: #4daf4a;
+}
+
+.median {
+  fill: #377eb8;
+  /*fill: blue;*/
+  /*fill: #984ea3;*/
+  /*fill: #beaed4; */
+}
+
+.species, .normal {
+  fill: grey;
+  /*fill: #ffff99;*/
+}
+
+.selected {
+  fill: #e41a1c;
+  /*fill: #fdc086;*/
+  /*fill:red;*/
+}
+
+.selected-year {
+  stroke: #e41a1c;
+  font-weight: lighter;
+}
