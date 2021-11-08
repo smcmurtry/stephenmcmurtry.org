@@ -79,14 +79,13 @@ portfolio_items.forEach(function(d) {
     .attr('class', 'date')
     .html(date_format_human(date_format.parse(d.date)));
 
-  item.append('div')
-    .attr('class', 'title')
-    .append('a')
-    .attr('href', d.link)
+  var link = item.append('a').attr('href', d.link);
+
+  link.append("h2")
+    .attr('class', 'project-title')
     .html(d.title);
 
-  item.append('div')
+  link.append('img')
     .attr('class', 'pic')
-    .attr('onclick', "location.href='" + d.link + "';")
-    .style('background-image', 'url(' + img_path + d.image_fname + ')');
+    .attr("src", img_path + d.image_fname)
 })

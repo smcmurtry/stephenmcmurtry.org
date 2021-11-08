@@ -124,6 +124,7 @@ h1 {
   height: 150px;
   border:1px solid lightgrey;
   cursor: pointer;
+  object-fit: cover;
 }
 
 .portfolio-item .pic:hover {
@@ -309,4 +310,11 @@ h1 {
     h3 {
         page-break-after: avoid;
     }
+}
+
+.project-title {
+    font-size: 1em;
+    line-height: 1.4;
+    margin: 0;
+    font-weight: normal;
 }
