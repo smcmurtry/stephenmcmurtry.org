@@ -1,0 +1,59 @@
+{
+  "personal": [
+    {
+      "title": "Peterborough Vote Tracker",
+      "url": "https://peterborough-city-council.ca/",
+      "display": "peterborough-city-council.ca",
+      "year": "2026",
+      "description": "Tracks every vote taken by Peterborough City Council. Search by topic, see how each councillor voted, and follow what is happening at City Hall."
+    },
+    {
+      "title": "Canadian Voting Reform",
+      "url": "https://votingreform.ca/",
+      "display": "votingreform.ca",
+      "year": "2016",
+      "description": "An interactive graphic explaining the voting systems proposed for Canada, with a simulation of the 2015 federal election under each one."
+    }
+  ],
+  "work": [
+    {
+      "title": "GC Notify",
+      "url": "https://notification.canada.ca/",
+      "display": "notification.canada.ca",
+      "year": "Current",
+      "description": "The Government of Canada's service for sending emails and text messages to the people it serves. I'm a full stack developer on the team."
+    },
+    {
+      "title": "COVID Alert",
+      "url": "https://github.com/cds-snc/covid-alert-app",
+      "display": "github.com/cds-snc/covid-alert-app",
+      "year": "2020",
+      "description": "Canada's exposure notification app for iOS and Android. I was a front end developer on the app."
+    },
+    {
+      "title": "COVID Alert open data",
+      "url": "https://github.com/cds-snc/covid-alert-data",
+      "display": "github.com/cds-snc/covid-alert-data",
+      "year": "2021",
+      "description": "Open data reported by the COVID Alert system, published in CSV format. I created the project, and others contributed to it later."
+    },
+    {
+      "title": "Veterans Affairs benefits finder",
+      "url": "https://benefits-avantages.veterans.gc.ca/",
+      "display": "benefits-avantages.veterans.gc.ca",
+      "year": "2018",
+      "description": "A tool that helps Veterans and their families find the benefits and services available to them. This was my first project at the Canadian Digital Service, where I worked as a developer."
+    }
+  ],
+  "archive": [
+    { "title": "Israeli ID System", "date": "2016-01-18", "url": "/israeli_id_system", "image": "id_system.png" },
+    { "title": "Middle Class Tax Cut", "date": "2015-11-14", "url": "/middle_class_tax_cut", "image": "middle_class_tax_cut.png" },
+    { "title": "Weather Chart", "date": "2015-11-05", "url": "/weather_chart", "image": "weather_chart.png" },
+    { "title": "Carbon Underground", "date": "2015-09-23", "url": "/carbon_underground", "image": "carbon_underground.png" },
+    { "title": "Canadian 2015 Election Map", "date": "2015-09-09", "url": "/election_map", "image": "election_map.png" },
+    { "title": "Christmas Bird Count", "date": "2015-08-24", "url": "/christmas_bird_count", "image": "christmas_bird_count_2.png" },
+    { "title": "Canadian Income Tax Explorer", "date": "2015-07-23", "url": "/income_tax", "image": "income_tax.png" },
+    { "title": "Ontario Public Building Energy Consumption", "date": "2015-04-24", "url": "/energy_consumption", "image": "building_energy.png" },
+    { "title": "Beaver Dams", "date": "2015-01-27", "url": "/beaverdams", "image": "beaver_dams.png" }
+  ]
+}

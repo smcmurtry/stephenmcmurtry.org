@@ -1,0 +1,76 @@
+{
+  "headline": "Software Developer",
+  "location": "Peterborough, Ontario, Canada",
+  "experience": [
+    {
+      "role": "Developer",
+      "org": "Canadian Digital Service",
+      "url": "https://digital.canada.ca/",
+      "dates": "May 2018 – Present",
+      "location": "Ottawa, Ontario",
+      "highlights": [
+        "Full stack developer on GC Notify, the Government of Canada's service for sending emails and text messages.",
+        "Front end developer on COVID Alert, Canada's exposure notification app.",
+        "Created the COVID Alert open data project.",
+        "Developer on the Veterans Affairs Canada benefits finder, my first project at CDS."
+      ]
+    },
+    {
+      "role": "Data Scientist",
+      "org": "Random Walk Financial",
+      "dates": "April 2016 – September 2019",
+      "location": "San Diego, California",
+      "highlights": []
+    },
+    {
+      "role": "Data Science and Data Visualization Specialist",
+      "org": "Independent contractor",
+      "dates": "March 2015 – May 2018",
+      "location": "Toronto, Ontario",
+      "highlights": []
+    },
+    {
+      "role": "Building Energy Analyst",
+      "org": "ecobee",
+      "url": "https://www.ecobee.com/",
+      "dates": "September 2012 – March 2015",
+      "location": "Toronto, Ontario",
+      "highlights": []
+    },
+    {
+      "role": "Teaching Assistant",
+      "org": "Carleton University",
+      "dates": "September 2010 – April 2012",
+      "location": "Ottawa, Ontario",
+      "highlights": []
+    },
+    {
+      "role": "Research Assistant",
+      "org": "Trent University",
+      "dates": "May 2009 – August 2009",
+      "location": "Peterborough, Ontario",
+      "highlights": []
+    }
+  ],
+  "education": [
+    {
+      "degree": "MASc, Sustainable Energy Engineering",
+      "school": "Carleton University",
+      "dates": "2010 – 2012"
+    },
+    {
+      "degree": "BSc, Physics and Mathematics",
+      "school": "Trent University",
+      "dates": "2005 – 2009"
+    }
+  ],
+  "skills": [
+    "Python",
+    "SQL",
+    "Git",
+    "Data science",
+    "Data visualization",
+    "Building energy modelling",
+    "Building science"
+  ]
+}

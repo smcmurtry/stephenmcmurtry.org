@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{% if title %}{{ title }} · {% endif %}{{ site.title }}</title>
+    <meta name="description" content="{{ description or site.description }}">
+    <meta property="og:title" content="{{ title or site.title }}">
+    <meta property="og:description" content="{{ description or site.description }}">
+    <meta property="og:type" content="{{ 'article' if layout == 'post.njk' else 'website' }}">
+    <meta property="og:url" content="{{ site.url }}{{ page.url }}">
+    <link rel="canonical" href="{{ site.url }}{{ page.url }}">
+    <link rel="alternate" type="application/atom+xml" title="{{ site.title }}" href="/feed.xml">
+    <link rel="icon" href="/favicon.ico" sizes="48x48">
+    <link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+    <link rel="stylesheet" href="/assets/site.css">
+  </head>
+  <body>
+    <a class="skip-link" href="#main">Skip to content</a>
+    <header class="site-header">
+      <div class="wrap">
+        <a class="site-name" href="/">{{ site.title }}</a>
+        <nav aria-label="Main">
+          <ul>
+            {%- set nav = [["Projects", "/projects/"], ["Blog", "/blog/"], ["Resume", "/resume/"]] %}
+            {%- for item in nav %}
+            <li><a href="{{ item[1] }}"{% if page.url and page.url.startsWith(item[1]) %} aria-current="page"{% endif %}>{{ item[0] }}</a></li>
+            {%- endfor %}
+          </ul>
+        </nav>
+      </div>
+    </header>
+
+    <main id="main" class="wrap">
+      {{ content | safe }}
+    </main>
+
+    <footer class="site-footer">
+      <div class="wrap">
+        <p>&copy; {{ site.author }} {{ page.date | year }}</p>
+        <ul>
+          <li><a href="mailto:{{ site.email }}">Email</a></li>
+          <li><a href="{{ site.github }}">GitHub</a></li>
+          <li><a href="{{ site.linkedin }}">LinkedIn</a></li>
+          <li><a href="/feed.xml">RSS</a></li>
+        </ul>
+        <p class="disclaimer">Views expressed on this site are my own and do not reflect the views of my employer.</p>
+      </div>
+    </footer>
+  </body>
+</html>

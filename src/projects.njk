@@ -1,0 +1,33 @@
+---
+layout: base.njk
+title: Projects
+permalink: /projects/
+description: Personal projects, work projects, and earlier data visualization work by Steve McMurtry.
+---
+<h1>Projects</h1>
+
+<section>
+  <h2>Personal</h2>
+  {% set items = projects.personal %}{% include "project-list.njk" %}
+</section>
+
+<section>
+  <h2>Work</h2>
+  {% set items = projects.work %}{% include "project-list.njk" %}
+</section>
+
+<section>
+  <h2>Earlier work</h2>
+  <p class="section-note">Data visualizations from 2015 and 2016, when I worked as a freelance data science and data visualization specialist.</p>
+  <ul class="archive-grid">
+    {%- for p in projects.archive %}
+    <li>
+      <a href="{{ p.url }}">
+        <img src="/img/{{ p.image }}" alt="" loading="lazy" width="900" height="650">
+        <span class="title">{{ p.title }}</span>
+        <span class="year">{{ p.date | year }}</span>
+      </a>
+    </li>
+    {%- endfor %}
+  </ul>
+</section>

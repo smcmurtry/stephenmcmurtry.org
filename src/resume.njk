@@ -1,0 +1,61 @@
+---
+layout: base.njk
+title: Resume
+permalink: /resume/
+description: Resume of Steve McMurtry, software developer.
+---
+<div class="resume">
+  <header class="resume-header">
+    <h1><span class="print-only">{{ site.author }}</span><span class="screen-only">Resume</span></h1>
+    <p>{{ resume.headline }} · {{ resume.location }}</p>
+    <p class="contact">
+      <a href="mailto:{{ site.email }}">{{ site.email }}</a> ·
+      <a href="{{ site.url }}">stephenmcmurtry.org</a> ·
+      <a href="{{ site.github }}">GitHub</a> ·
+      <a href="{{ site.linkedin }}">LinkedIn</a>
+    </p>
+    <p class="screen-only"><button type="button" class="print-button" onclick="window.print()">Print or save as PDF</button></p>
+  </header>
+
+  <section>
+    <h2>Experience</h2>
+    {%- for job in resume.experience %}
+    <div class="entry">
+      <div class="entry-head">
+        <h3>{{ job.role }}</h3>
+        <span class="dates">{{ job.dates }}</span>
+      </div>
+      <p class="org">{% if job.url %}<a href="{{ job.url }}">{{ job.org }}</a>{% else %}{{ job.org }}{% endif %} · {{ job.location }}</p>
+      {%- if job.highlights.length %}
+      <ul>
+        {%- for h in job.highlights %}
+        <li>{{ h }}</li>
+        {%- endfor %}
+      </ul>
+      {%- endif %}
+    </div>
+    {%- endfor %}
+  </section>
+
+  <section>
+    <h2>Education</h2>
+    {%- for ed in resume.education %}
+    <div class="entry">
+      <div class="entry-head">
+        <h3>{{ ed.degree }}</h3>
+        <span class="dates">{{ ed.dates }}</span>
+      </div>
+      <p class="org">{{ ed.school }}</p>
+    </div>
+    {%- endfor %}
+  </section>
+
+  <section>
+    <h2>Skills</h2>
+    <ul class="skills">
+      {%- for s in resume.skills %}
+      <li>{{ s }}</li>
+      {%- endfor %}
+    </ul>
+  </section>
+</div>

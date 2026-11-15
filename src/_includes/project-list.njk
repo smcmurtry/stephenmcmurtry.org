@@ -1,0 +1,9 @@
+<ul class="project-list">
+  {%- for p in items %}
+  <li>
+    <h3><a href="{{ p.url }}">{{ p.title }}</a> <span class="year">{{ p.year }}</span></h3>
+    <p>{{ p.description }}</p>
+    <p class="link"><a href="{{ p.url }}">{{ p.display }}</a></p>
+  </li>
+  {%- endfor %}
+</ul>

@@ -1,0 +1,27 @@
+---
+layout: base.njk
+---
+<section class="intro">
+  <h1>Hi, I'm Steve.</h1>
+  <p>I'm a software developer at the <a href="https://digital.canada.ca/">Canadian Digital Service</a>, living in Peterborough, Ontario. I build civic tech and data tools, and I write here about city planning, bike advocacy and other things I'm thinking about.</p>
+</section>
+
+<section>
+  <h2>Projects</h2>
+  {% set items = projects.personal %}{% include "project-list.njk" %}
+</section>
+
+<section>
+  <h2>Work</h2>
+  {% set items = projects.work %}{% include "project-list.njk" %}
+  <p class="more"><a href="/projects/">All projects, including earlier data visualization work &rarr;</a></p>
+</section>
+
+{% set posts = collections.posts | reverse %}
+{% if posts.length %}
+<section>
+  <h2>Recent writing</h2>
+  {% set items = posts | head(3) %}{% include "post-list.njk" %}
+  <p class="more"><a href="/blog/">All posts &rarr;</a></p>
+</section>
+{% endif %}
